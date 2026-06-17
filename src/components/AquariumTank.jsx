@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Settings, Info, Loader2, HelpCircle } from 'lucide-react';
 
 export default function AquariumTank({ 
