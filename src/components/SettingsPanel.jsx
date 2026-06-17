@@ -24,9 +24,10 @@ export default function SettingsPanel({
     setLoading(true);
     setStatusMessage({ type: 'info', text: 'Scraping travel options & calling Gemini...' });
     try {
-      // Invoke the Supabase Edge Function
+      // Invoke the Supabase Edge Function forcing regeneration
       const { data, error } = await supabase.functions.invoke('generate-trip-digest', {
-        method: 'POST'
+        method: 'POST',
+        body: { force: true }
       });
 
       if (error) {
