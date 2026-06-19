@@ -46,7 +46,7 @@ export default function PinGate({ correctPin, onVerify }) {
       >
         {/* Wordmark */}
         <h1 className="font-display italic text-4xl text-sea-foam mb-2 text-center drop-shadow-md">
-          The Aquarium
+          The AIquarium
         </h1>
         <p className="font-mono text-[10px] uppercase tracking-widest text-sea-foam/50 mb-8 flex items-center gap-1.5">
           <Lock size={12} className="text-bioluminescent" />
@@ -78,6 +78,7 @@ export default function PinGate({ correctPin, onVerify }) {
           {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((num) => (
             <button
               key={num}
+              id={`pin-btn-${num}`}
               onClick={() => handleNumberClick(num.toString())}
               className="aspect-square flex items-center justify-center text-2xl font-mono border border-white/5 bg-white/[0.02] rounded-full active:bg-bioluminescent/20 hover:bg-white/[0.05] active:border-bioluminescent/40 transition-colors duration-150 focus:outline-none"
             >
@@ -86,6 +87,7 @@ export default function PinGate({ correctPin, onVerify }) {
           ))}
           <div className="flex items-center justify-center" /> {/* Empty spacing */}
           <button
+            id="pin-btn-0"
             onClick={() => handleNumberClick('0')}
             className="aspect-square flex items-center justify-center text-2xl font-mono border border-white/5 bg-white/[0.02] rounded-full active:bg-bioluminescent/20 hover:bg-white/[0.05] active:border-bioluminescent/40 transition-colors duration-150 focus:outline-none"
           >

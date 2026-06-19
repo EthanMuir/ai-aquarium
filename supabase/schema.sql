@@ -62,3 +62,9 @@ ON CONFLICT (key) DO NOTHING;
 INSERT INTO fish (name, slug, emoji, description, color_accent) 
 VALUES ('Trip Planner', 'trip-planner', '🐟', 'Your daily escape artist', '#00e5ff')
 ON CONFLICT (slug) DO NOTHING;
+
+-- DISABLE ROW LEVEL SECURITY (for single-user, direct-client MVP queries)
+ALTER TABLE fish DISABLE ROW LEVEL SECURITY;
+ALTER TABLE fish_context DISABLE ROW LEVEL SECURITY;
+ALTER TABLE daily_digests DISABLE ROW LEVEL SECURITY;
+ALTER TABLE app_settings DISABLE ROW LEVEL SECURITY;

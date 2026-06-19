@@ -1,34 +1,79 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronRight, ChevronLeft, Award } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 
-export default function OnboardingQuiz({ onComplete }) {
+export default function OnboardingQuiz({ onComplete, fishSlug = 'trip-planner' }) {
   const [step, setStep] = useState(1);
-  const [animatingOut, setAnimatingOut] = useState(false);
   const [celebrate, setCelebrate] = useState(false);
+  const [geminiKey, setGeminiKey] = useState('');
+  const [tavilyKey, setTavilyKey] = useState('');
   
-  const [answers, setAnswers] = useState({
-    home_city: '',
-    budget_range: '',
-    trip_duration: '',
-    travel_style: [], // array for multi-select
-    travel_party: '',
-    passport_notes: '',
-    blackout_months: [], // array for multi-select
-    visited_places: '',
-    dream_keywords: ''
+  const isStock = fishSlug === 'stock-lookout';
+
+  const [answers, setAnswers] = useState(() => {
+    if (isStock) {
+      return {
+        experience_level: 'Some experience',
+        investing_goal: 'Steady long-term growth',
+        risk_reaction: 'Hold and wait it out',
+        stock_interests: ['Tech & AI', 'Growth Stocks'],
+        time_horizon: 'Long-term (3–10 years)',
+        position_size: '$500–$2,000',
+        markets: 'NYSE, NASDAQ (US)',
+        excluded_sectors: '',
+        tip_preference: 'Stocks trending right now',
+        current_holdings: ''
+      };
+    } else {
+      return {
+        home_city: 'Ottawa, Canada',
+        budget_range: '$1,500–$3,000',
+        trip_duration: 'Week (7–10 days)',
+        travel_style: ['Adventure', 'Culture & History'],
+        travel_party: 'Solo',
+        passport_notes: 'Canadian passport',
+        blackout_months: [],
+        visited_places: '',
+        dream_keywords: 'warm, remote, ancient'
+      };
+    }
   });
 
   const [loading, setLoading] = useState(false);
 
-  const questions = [
+  // Load existing API keys from DB on mount
+  useEffect(() => {
+    async function loadApiKeys() {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data } = await supabase
+          .from('user_api_keys')
+          .select('*')
+          .eq('user_id', user.id)
+          .maybeSingle();
+        if (data) {
+          setGeminiKey(data.gemini_api_key || '');
+          setTavilyKey(data.tavily_api_key || '');
+        }
+      }
+    }
+    loadApiKeys();
+  }, []);
+
+  const tripQuestions = [
+    {
+      id: 'api_keys',
+      title: 'Configure Your API Keys',
+      type: 'api_keys',
+      validate: () => true
+    },
     {
       id: 'home_city',
       title: 'Where are you flying from?',
       type: 'text',
       placeholder: 'e.g. Ottawa, Canada',
-      validate: () => answers.home_city.trim().length > 0
+      validate: () => answers.home_city?.trim().length > 0
     },
     {
       id: 'budget_range',
@@ -57,7 +102,7 @@ export default function OnboardingQuiz({ onComplete }) {
         'City Exploration',
         'Nature & Wildlife'
       ],
-      validate: () => answers.travel_style.length > 0
+      validate: () => answers.travel_style?.length > 0
     },
     {
       id: 'travel_party',
@@ -71,7 +116,7 @@ export default function OnboardingQuiz({ onComplete }) {
       title: 'Passport or visa restrictions?',
       type: 'text',
       placeholder: 'e.g. Canadian passport, no US visa needed',
-      validate: () => true // Optional
+      validate: () => true
     },
     {
       id: 'blackout_months',
@@ -81,24 +126,104 @@ export default function OnboardingQuiz({ onComplete }) {
         'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
         'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
       ],
-      validate: () => true // Optional
+      validate: () => true
     },
     {
       id: 'visited_places',
       title: "Places you've already been that we shouldn't repeat?",
       type: 'textarea',
       placeholder: 'e.g. Paris, Tokyo, New York (comma separated)',
-      validate: () => true // Optional
+      validate: () => true
     },
     {
       id: 'dream_keywords',
       title: 'Three words that describe your dream trip.',
       type: 'text',
       placeholder: 'e.g. warm, remote, ancient',
-      validate: () => answers.dream_keywords.trim().length > 0
+      validate: () => answers.dream_keywords?.trim().length > 0
     }
   ];
 
+  const stockQuestions = [
+    {
+      id: 'api_keys',
+      title: 'Configure Your API Keys',
+      type: 'api_keys',
+      validate: () => true
+    },
+    {
+      id: 'experience_level',
+      title: "What's your stock investing experience?",
+      type: 'buttons',
+      options: ['Complete beginner', 'Some experience', 'Experienced trader', 'Institutional / Advanced'],
+      validate: () => answers.experience_level !== ''
+    },
+    {
+      id: 'investing_goal',
+      title: "What is your primary investing goal?",
+      type: 'buttons',
+      options: ['Steady long-term growth', 'Passive dividend income', 'High-risk speculation', 'Capital preservation'],
+      validate: () => answers.investing_goal !== ''
+    },
+    {
+      id: 'risk_reaction',
+      title: "How do you react to a 20% stock market drop?",
+      type: 'buttons',
+      options: ['Panic and sell everything', 'Hold and wait it out', 'Buy more at a discount', 'Do nothing/Unsure'],
+      validate: () => answers.risk_reaction !== ''
+    },
+    {
+      id: 'stock_interests',
+      title: "Which sectors or themes interest you most?",
+      type: 'chips',
+      options: ['Tech & AI', 'Growth Stocks', 'ETFs & Index Funds', 'Energy & Utilities', 'Healthcare & Biotech', 'Finance & Real Estate', 'Value Stocks'],
+      validate: () => answers.stock_interests?.length > 0
+    },
+    {
+      id: 'time_horizon',
+      title: "What is your target investment time horizon?",
+      type: 'buttons',
+      options: ['Short-term (< 1 year)', 'Medium-term (1–3 years)', 'Long-term (3–10 years)', 'Retirement / 10+ years'],
+      validate: () => answers.time_horizon !== ''
+    },
+    {
+      id: 'position_size',
+      title: "What is your typical investment size per position?",
+      type: 'buttons',
+      options: ['Under $500', '$500–$2,000', '$2,000–$5,000', '$5,000+'],
+      validate: () => answers.position_size !== ''
+    },
+    {
+      id: 'markets',
+      title: "Which stock markets do you prefer trading in?",
+      type: 'buttons',
+      options: ['NYSE, NASDAQ (US)', 'TSX (Canada)', 'LSE (UK) / European', 'Global Markets'],
+      validate: () => answers.markets !== ''
+    },
+    {
+      id: 'excluded_sectors',
+      title: "Any specific sectors or companies to exclude?",
+      type: 'text',
+      placeholder: "e.g. Oil & Gas, Crypto (or leave blank)",
+      validate: () => true
+    },
+    {
+      id: 'tip_preference',
+      title: "What kind of daily recommendations do you want?",
+      type: 'buttons',
+      options: ['Stocks trending right now', 'Undervalued hidden gems', 'Solid dividend payers', 'Conservative index ETFs'],
+      validate: () => answers.tip_preference !== ''
+    },
+    {
+      id: 'current_holdings',
+      title: "What are your primary current holdings?",
+      type: 'text',
+      placeholder: "e.g. AAPL, VOO, TSLA (comma separated, or leave blank)",
+      validate: () => true
+    }
+  ];
+
+  const questions = isStock ? stockQuestions : tripQuestions;
   const currentQ = questions[step - 1];
   const progressPercent = (step / questions.length) * 100;
 
@@ -134,26 +259,52 @@ export default function OnboardingQuiz({ onComplete }) {
   const handleSubmit = async () => {
     setLoading(true);
     try {
-      // Form context payload for Supabase upsert
-      const contextRows = Object.entries(answers).map(([key, value]) => {
-        let valString = '';
-        if (Array.isArray(value)) {
-          valString = value.join(', ');
-        } else {
-          valString = value || '';
-        }
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        alert('You must be logged in.');
+        setLoading(false);
+        return;
+      }
 
-        return {
-          fish_slug: 'trip-planner',
-          context_key: key,
-          context_value: valString
-        };
-      });
+      // 1. Save user API keys
+      const { error: keysError } = await supabase
+        .from('user_api_keys')
+        .upsert({
+          user_id: user.id,
+          gemini_api_key: geminiKey,
+          tavily_api_key: tavilyKey,
+          updated_at: new Date().toISOString()
+        });
 
-      // Write context to fish_context table
+      if (keysError) {
+        console.error('Error saving API keys to Supabase:', keysError);
+        alert('Could not save your API keys. Please try again.');
+        setLoading(false);
+        return;
+      }
+
+      // 2. Save quiz preferences to context rows
+      const contextRows = Object.entries(answers)
+        .filter(([key]) => key !== 'api_keys')
+        .map(([key, value]) => {
+          let valString = '';
+          if (Array.isArray(value)) {
+            valString = value.join(', ');
+          } else {
+            valString = value || '';
+          }
+
+          return {
+            user_id: user.id,
+            fish_slug: fishSlug,
+            context_key: key,
+            context_value: valString
+          };
+        });
+
       const { error } = await supabase
         .from('fish_context')
-        .upsert(contextRows, { onConflict: 'fish_slug,context_key' });
+        .upsert(contextRows, { onConflict: 'user_id,fish_slug,context_key' });
 
       if (error) {
         console.error('Error saving quiz to Supabase:', error);
@@ -162,13 +313,9 @@ export default function OnboardingQuiz({ onComplete }) {
         return;
       }
 
-      // Quiz completed successfully
-      localStorage.setItem('aquarium_quiz_done', 'true');
-      
       // Trigger celebration swim animation
       setCelebrate(true);
       
-      // After celebration animation completes, close the modal
       setTimeout(() => {
         onComplete();
       }, 4000);
@@ -178,7 +325,7 @@ export default function OnboardingQuiz({ onComplete }) {
     }
   };
 
-  const isValid = currentQ.validate();
+  const isValid = currentQ.type === 'api_keys' ? true : currentQ.validate();
 
   return (
     <div className="fixed inset-0 z-40 bg-abyss text-sea-foam flex flex-col justify-between overflow-hidden">
@@ -188,7 +335,11 @@ export default function OnboardingQuiz({ onComplete }) {
       {/* Huge subtle fish silhouette watermark */}
       <div className="absolute inset-0 flex items-center justify-center pointer-events-none select-none opacity-[0.03] z-0">
         <svg width="400" height="400" viewBox="0 0 100 100" fill="currentColor">
-          <path d="M10,50 C25,25 65,20 85,45 C90,40 92,35 95,32 C94,44 94,56 95,68 C92,65 90,60 85,55 C65,80 25,75 10,50 Z" />
+          {isStock ? (
+            <ellipse cx="50" cy="50" rx="38" ry="28" />
+          ) : (
+            <path d="M10,50 C25,25 65,20 85,45 C90,40 92,35 95,32 C94,44 94,56 95,68 C92,65 90,60 85,55 C65,80 25,75 10,50 Z" />
+          )}
         </svg>
       </div>
 
@@ -197,7 +348,7 @@ export default function OnboardingQuiz({ onComplete }) {
         <motion.div
           initial={{ width: 0 }}
           animate={{ width: `${progressPercent}%` }}
-          className="h-full bg-bioluminescent shadow-[0_0_8px_#00e5ff]"
+          className={`h-full ${isStock ? 'bg-[#1e88e5] shadow-[0_0_8px_#1e88e5]' : 'bg-bioluminescent shadow-[0_0_8px_#00e5ff]'}`}
           transition={{ duration: 0.3 }}
         />
       </div>
@@ -226,13 +377,67 @@ export default function OnboardingQuiz({ onComplete }) {
 
               {/* Render Inputs based on question type */}
               <div className="mt-4">
+                {currentQ.type === 'api_keys' && (
+                  <div className="space-y-4">
+                    <p className="text-xs text-sea-foam/60 leading-relaxed font-sans">
+                      Enter your personal keys to run these AI agents on your own quota. You can leave these fields empty to use system default keys (subject to shared API limits).
+                    </p>
+                    <div className="space-y-4">
+                      <div>
+                        <label className="text-[10px] uppercase font-mono tracking-wider text-sea-foam/50 block mb-1.5 font-semibold">
+                          Google Gemini API Key
+                        </label>
+                        <input
+                          type="password"
+                          value={geminiKey}
+                          onChange={(e) => setGeminiKey(e.target.value)}
+                          placeholder="e.g. AIzaSy..."
+                          className={`w-full bg-white/[0.02] border border-white/5 rounded-xl px-4 py-3 text-sm text-white focus:outline-none transition-all ${
+                            isStock ? 'focus:border-[#1e88e5]/40 focus:bg-[#1e88e5]/5' : 'focus:border-bioluminescent/40 focus:bg-[#00e5ff]/5'
+                          } placeholder-sea-foam/20`}
+                        />
+                        <a 
+                          href="https://aistudio.google.com" 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="text-[10px] text-bioluminescent hover:underline font-mono mt-1 inline-block"
+                        >
+                          Get a free Gemini API key →
+                        </a>
+                      </div>
+                      <div>
+                        <label className="text-[10px] uppercase font-mono tracking-wider text-sea-foam/50 block mb-1.5 font-semibold">
+                          Tavily Search API Key
+                        </label>
+                        <input
+                          type="password"
+                          value={tavilyKey}
+                          onChange={(e) => setTavilyKey(e.target.value)}
+                          placeholder="e.g. tvly-..."
+                          className={`w-full bg-white/[0.02] border border-white/5 rounded-xl px-4 py-3 text-sm text-white focus:outline-none transition-all ${
+                            isStock ? 'focus:border-[#1e88e5]/40 focus:bg-[#1e88e5]/5' : 'focus:border-bioluminescent/40 focus:bg-[#00e5ff]/5'
+                          } placeholder-sea-foam/20`}
+                        />
+                        <a 
+                          href="https://tavily.com" 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="text-[10px] text-coral-warm hover:underline font-mono mt-1 inline-block"
+                        >
+                          Get a free Tavily API key →
+                        </a>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 {currentQ.type === 'text' && (
                   <input
                     type="text"
                     value={answers[currentQ.id]}
                     onChange={(e) => setAnswers({ ...answers, [currentQ.id]: e.target.value })}
                     placeholder={currentQ.placeholder}
-                    className="w-full bg-white/[0.03] border border-white/10 rounded-lg px-4 py-3 text-lg focus:outline-none focus:border-bioluminescent focus:ring-1 focus:ring-bioluminescent transition-colors placeholder-sea-foam/30"
+                    className={`w-full frosted-glass-light rounded-xl px-4 py-3.5 text-lg text-white focus:outline-none transition-all ${isStock ? 'neon-border-stock focus:neon-border-stock-active' : 'neon-border-blue focus:neon-border-blue-active'} placeholder-sea-foam/25`}
                     autoFocus
                   />
                 )}
@@ -243,7 +448,7 @@ export default function OnboardingQuiz({ onComplete }) {
                     onChange={(e) => setAnswers({ ...answers, [currentQ.id]: e.target.value })}
                     placeholder={currentQ.placeholder}
                     rows={4}
-                    className="w-full bg-white/[0.03] border border-white/10 rounded-lg px-4 py-3 text-base focus:outline-none focus:border-bioluminescent focus:ring-1 focus:ring-bioluminescent transition-colors placeholder-sea-foam/30 resize-none"
+                    className={`w-full frosted-glass-light rounded-xl px-4 py-3.5 text-base text-white focus:outline-none transition-all resize-none ${isStock ? 'neon-border-stock focus:neon-border-stock-active' : 'neon-border-blue focus:neon-border-blue-active'} placeholder-sea-foam/25`}
                     autoFocus
                   />
                 )}
@@ -254,10 +459,12 @@ export default function OnboardingQuiz({ onComplete }) {
                       <button
                         key={option}
                         onClick={() => selectOption(option)}
-                        className={`px-6 py-4 rounded-lg text-left text-base border transition-all duration-200 ${
+                        className={`px-6 py-4 rounded-xl text-left text-base transition-all duration-300 transform hover:-translate-y-0.5 ${
                           answers[currentQ.id] === option
-                            ? 'bg-bioluminescent/10 border-bioluminescent text-bioluminescent shadow-[0_0_15px_rgba(0,229,255,0.1)]'
-                            : 'bg-white/[0.02] border-white/10 hover:bg-white/[0.05] hover:border-white/20'
+                            ? isStock
+                              ? 'frosted-glass-light neon-border-stock-active text-white shadow-[0_0_15px_rgba(30,136,229,0.15)]'
+                              : 'frosted-glass-light neon-border-blue-active text-white shadow-[0_0_15px_rgba(0,229,255,0.15)]'
+                            : 'frosted-glass-light text-sea-foam/70 hover:text-white border border-white/5 hover:border-white/20'
                         }`}
                       >
                         {option}
@@ -274,10 +481,12 @@ export default function OnboardingQuiz({ onComplete }) {
                         <button
                           key={option}
                           onClick={() => toggleChip(option)}
-                          className={`px-4 py-2.5 rounded-full text-sm font-medium border transition-all duration-200 ${
+                          className={`px-4 py-2 rounded-full text-sm font-medium transition-all duration-300 ${
                             selected
-                              ? 'bg-bioluminescent/15 border-bioluminescent text-bioluminescent shadow-[0_0_10px_rgba(0,229,255,0.15)]'
-                              : 'bg-white/[0.02] border-white/10 hover:bg-white/[0.05] hover:border-white/20'
+                              ? isStock
+                                ? 'frosted-glass-light neon-border-stock-active text-white shadow-[0_0_10px_rgba(30,136,229,0.15)]'
+                                : 'frosted-glass-light neon-border-blue-active text-white shadow-[0_0_10px_rgba(0,229,255,0.15)]'
+                              : 'frosted-glass-light text-sea-foam/70 hover:text-white border border-white/5 hover:border-white/20'
                           }`}
                         >
                           {option}
@@ -295,10 +504,12 @@ export default function OnboardingQuiz({ onComplete }) {
                         <button
                           key={month}
                           onClick={() => toggleChip(month)}
-                          className={`py-3 rounded-lg text-sm font-semibold border transition-all duration-200 ${
+                          className={`py-3 rounded-xl text-sm font-semibold transition-all duration-300 ${
                             selected
-                              ? 'bg-bioluminescent/15 border-bioluminescent text-bioluminescent shadow-[0_0_10px_rgba(0,229,255,0.15)]'
-                              : 'bg-white/[0.02] border-white/10 hover:bg-white/[0.05] hover:border-white/20'
+                              ? isStock
+                                ? 'frosted-glass-light neon-border-stock-active text-white shadow-[0_0_10px_rgba(30,136,229,0.15)]'
+                                : 'frosted-glass-light neon-border-blue-active text-white shadow-[0_0_10px_rgba(0,229,255,0.15)]'
+                              : 'frosted-glass-light text-sea-foam/70 hover:text-white border border-white/5 hover:border-white/20'
                           }`}
                         >
                           {month}
@@ -330,37 +541,74 @@ export default function OnboardingQuiz({ onComplete }) {
                   }}
                   className="w-[120px] h-[100px] absolute"
                 >
-                  <svg viewBox="0 0 120 100" width="100%" height="100%">
-                    <defs>
-                      <linearGradient id="celeb-fish-grad" x1="0%" y1="0%" x2="100%" y2="0%">
-                        <stop offset="0%" stopColor="#00bcd4" />
-                        <stop offset="100%" stopColor="#1565c0" />
-                      </linearGradient>
-                      <linearGradient id="celeb-fin-grad" x1="0%" y1="0%" x2="100%" y2="100%">
-                        <stop offset="0%" stopColor="#ff8a65" />
-                        <stop offset="100%" stopColor="#ff6b47" />
-                      </linearGradient>
-                    </defs>
-                    
-                    {/* Dorsal Fin */}
-                    <path d="M35,32 C45,10 65,15 70,30 C55,25 42,28 35,32 Z" fill="url(#celeb-fin-grad)" opacity="0.9" />
-                    {/* Tail Fin */}
-                    <path d="M10,50 C2,30 5,20 15,28 C22,40 18,45 10,50 Z" fill="url(#celeb-fin-grad)" opacity="0.9" />
-                    <path d="M10,50 C2,70 5,80 15,72 C22,60 18,55 10,50 Z" fill="url(#celeb-fin-grad)" opacity="0.9" />
-                    {/* Ventral Fin */}
-                    <path d="M40,68 C50,85 62,82 65,70 C53,72 45,71 40,68 Z" fill="url(#celeb-fin-grad)" opacity="0.8" />
-                    
-                    {/* Main Body */}
-                    <path d="M15,50 C25,28 65,22 88,48 C100,50 108,48 112,47 C108,52 100,50 88,52 C65,78 25,72 15,50 Z" fill="url(#celeb-fish-grad)" />
-                    
-                    {/* Body Stripes */}
-                    <path d="M48,32 C52,42 52,58 48,68 C51,58 51,42 48,32 Z" fill="#0d47a1" opacity="0.25" />
-                    <path d="M62,30 C66,42 66,58 62,70 C65,58 65,42 62,30 Z" fill="#0d47a1" opacity="0.25" />
-                    
-                    {/* Eye */}
-                    <circle cx="95" cy="45" r="4.5" fill="white" />
-                    <circle cx="96.5" cy="44" r="2" fill="#020810" />
-                  </svg>
+                  {isStock ? (
+                    <svg viewBox="0 0 120 100" width="100%" height="100%">
+                      <defs>
+                        <linearGradient id="celeb-stock-grad" x1="0%" y1="0%" x2="100%" y2="0%">
+                          <stop offset="0%" stopColor="#1565c0" />
+                          <stop offset="40%" stopColor="#1e88e5" />
+                          <stop offset="100%" stopColor="#42a5f5" />
+                        </linearGradient>
+                        <linearGradient id="celeb-stock-fin-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+                          <stop offset="0%" stopColor="#1565c0" />
+                          <stop offset="100%" stopColor="#0d47a1" />
+                        </linearGradient>
+                        <linearGradient id="celeb-stock-tail-grad" x1="0%" y1="0%" x2="100%" y2="0%">
+                          <stop offset="0%" stopColor="#fdd835" />
+                          <stop offset="100%" stopColor="#f9a825" />
+                        </linearGradient>
+                        <clipPath id="celeb-stock-clip">
+                          <ellipse cx="60" cy="50" rx="35" ry="28" />
+                        </clipPath>
+                      </defs>
+                      <path d="M38,25 C42,8 60,6 72,18 C72,22 65,24 38,25 Z" fill="url(#celeb-stock-fin-grad)" opacity="0.9" />
+                      <path d="M40,75 C45,88 62,90 72,80 C65,78 50,77 40,75 Z" fill="url(#celeb-stock-fin-grad)" opacity="0.8" />
+                      <path d="M72,52 C78,58 82,62 76,66 C72,62 70,56 72,52 Z" fill="#fdd835" opacity="0.7" />
+                      <path d="M22,50 C14,35 10,24 20,30 C24,40 24,44 22,50 Z" fill="url(#celeb-stock-tail-grad)" opacity="0.9" />
+                      <path d="M22,50 C14,65 10,76 20,70 C24,60 24,56 22,50 Z" fill="url(#celeb-stock-tail-grad)" opacity="0.9" />
+                      <g clipPath="url(#celeb-stock-clip)">
+                        <ellipse cx="60" cy="50" rx="35" ry="28" fill="url(#celeb-stock-grad)" />
+                        <path d="M80,38 C72,36 55,38 42,45 C35,50 30,58 28,68 L32,72 C35,62 40,54 48,48 C58,42 72,40 82,42 Z" fill="#0a1628" opacity="0.85" />
+                        <ellipse cx="62" cy="38" rx="18" ry="8" fill="#64b5f6" opacity="0.3" />
+                      </g>
+                      <ellipse cx="60" cy="50" rx="35" ry="28" fill="none" stroke="#0d47a1" strokeWidth="1.5" />
+                      <path d="M26,46 L22,50 L26,54" stroke="#fdd835" strokeWidth="2" fill="none" strokeLinecap="round" />
+                      <circle cx="80" cy="44" r="5" fill="white" />
+                      <circle cx="81.5" cy="43.5" r="2.5" fill="#020810" />
+                      <circle cx="80.5" cy="42.5" r="0.9" fill="white" />
+                    </svg>
+                  ) : (
+                    <svg viewBox="0 0 120 100" width="100%" height="100%">
+                      <defs>
+                        <linearGradient id="celeb-fish-grad" x1="0%" y1="0%" x2="100%" y2="0%">
+                          <stop offset="0%" stopColor="#ff5722" />
+                          <stop offset="60%" stopColor="#ff7043" />
+                          <stop offset="100%" stopColor="#ffb74d" />
+                        </linearGradient>
+                        <linearGradient id="celeb-fin-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+                          <stop offset="0%" stopColor="#ff7043" />
+                          <stop offset="100%" stopColor="#d84315" />
+                        </linearGradient>
+                        <clipPath id="celeb-body-clip">
+                          <path d="M15,50 C25,28 65,22 85,38 C92,42 102,45 102,50 C102,55 92,58 85,62 C65,78 25,72 15,50 Z" />
+                        </clipPath>
+                      </defs>
+                      <path d="M35,32 C45,10 65,15 70,30 C55,25 42,28 35,32 Z" fill="url(#celeb-fin-grad)" opacity="0.9" />
+                      <path d="M10,50 C2,30 5,20 15,28 C22,40 18,45 10,50 Z" fill="url(#celeb-fin-grad)" opacity="0.9" />
+                      <path d="M10,50 C2,70 5,80 15,72 C22,60 18,55 10,50 Z" fill="url(#celeb-fin-grad)" opacity="0.9" />
+                      <path d="M40,68 C50,85 62,82 65,70 C53,72 45,71 40,68 Z" fill="url(#celeb-fin-grad)" opacity="0.8" />
+                      <g clipPath="url(#celeb-body-clip)">
+                        <path d="M15,50 C25,28 65,22 85,38 C92,42 102,45 102,50 C102,55 92,58 85,62 C65,78 25,72 15,50 Z" fill="url(#celeb-fish-grad)" />
+                        <path d="M 24,15 L 34,15 L 30,85 L 20,85 Z" fill="#212121" />
+                        <path d="M 26,15 L 32,15 L 28,85 L 22,85 Z" fill="#ffffff" />
+                        <path d="M 52,10 C 63.5,35 63.5,65 52,90 L 61,90 C 72.5,65 72.5,35 61,10 Z" fill="#ffffff" />
+                        <path d="M 78,10 C 84.5,35 84.5,65 78,90 L 85,90 C 91.5,65 91.5,35 85,10 Z" fill="#ffffff" />
+                      </g>
+                      <circle cx="86" cy="44" r="4.5" fill="white" />
+                      <circle cx="87.5" cy="43" r="2.5" fill="#020810" />
+                      <circle cx="86.5" cy="42.5" r="0.8" fill="white" />
+                    </svg>
+                  )}
                 </motion.div>
               </div>
 
@@ -370,14 +618,16 @@ export default function OnboardingQuiz({ onComplete }) {
                 transition={{ delay: 0.6 }}
                 className="flex flex-col items-center"
               >
-                <div className="w-16 h-16 rounded-full bg-bioluminescent/10 flex items-center justify-center text-bioluminescent border border-bioluminescent/20 mb-6 shadow-[0_0_20px_rgba(0,229,255,0.15)]">
+                <div className={`w-16 h-16 rounded-full ${isStock ? 'bg-[#1e88e5]/10 text-[#42a5f5] border-[#1e88e5]/20 shadow-[0_0_20px_rgba(30,136,229,0.15)]' : 'bg-bioluminescent/10 text-bioluminescent border-bioluminescent/20 shadow-[0_0_20px_rgba(0,229,255,0.15)]'} flex items-center justify-center mb-6`}>
                   <Award size={32} />
                 </div>
                 <h2 className="font-display italic text-3xl text-white mb-3">
                   Your Fish is Ready!
                 </h2>
                 <p className="text-sea-foam/70 max-w-sm text-sm font-sans leading-relaxed">
-                  The aquarium ecosystem has adapted to your profile. Your first travel digest will arrive tomorrow morning.
+                  {isStock
+                    ? "The stock market lookout has updated. Your first personalized market digest will arrive tomorrow morning."
+                    : "The AIquarium ecosystem has adapted to your profile. Your first travel digest will arrive tomorrow morning."}
                 </p>
               </motion.div>
             </motion.div>
@@ -402,11 +652,14 @@ export default function OnboardingQuiz({ onComplete }) {
           )}
 
           <button
+            id="quiz-next-btn"
             onClick={handleNext}
             disabled={!isValid || loading}
             className={`flex items-center gap-1.5 px-5 py-2.5 rounded-lg text-sm font-semibold transition-all duration-200 ${
               isValid && !loading
-                ? 'bg-coral-warm text-white shadow-[0_0_15px_rgba(255,107,71,0.25)] hover:shadow-[0_0_20px_rgba(255,107,71,0.4)] active:scale-95'
+                ? isStock
+                  ? 'bg-[#1e88e5] text-white shadow-[0_0_15px_rgba(30,136,229,0.25)] hover:shadow-[0_0_20px_rgba(30,136,229,0.4)] active:scale-95'
+                  : 'bg-coral-warm text-white shadow-[0_0_15px_rgba(255,107,71,0.25)] hover:shadow-[0_0_20px_rgba(255,107,71,0.4)] active:scale-95'
                 : 'bg-white/5 border border-white/5 text-sea-foam/30 cursor-not-allowed'
             }`}
           >
@@ -415,10 +668,10 @@ export default function OnboardingQuiz({ onComplete }) {
             ) : step === questions.length ? (
               'Finish Onboarding'
             ) : (
-              <>
+              <div className="flex items-center gap-1">
                 Next
                 <ChevronRight size={16} />
-              </>
+              </div>
             )}
           </button>
         </div>

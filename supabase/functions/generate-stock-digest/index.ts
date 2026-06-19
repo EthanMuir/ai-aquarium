@@ -130,7 +130,7 @@ serve(async (req) => {
       const { data: users, error: usersError } = await supabase
         .from('fish_context')
         .select('user_id')
-        .eq('fish_slug', 'trip-planner');
+        .eq('fish_slug', 'stock-lookout');
 
       if (usersError) {
         throw new Error(`Failed to load users for cron: ${usersError.message}`);
@@ -138,7 +138,7 @@ serve(async (req) => {
 
       // Filter unique user IDs
       const uniqueUserIds = [...new Set((users || []).map(u => u.user_id).filter(id => id !== null))];
-      console.log(`Cron trigger: Dispatching curation for ${uniqueUserIds.length} users.`);
+      console.log(`Cron trigger (Stocks): Dispatching curation for ${uniqueUserIds.length} users.`);
 
       const triggerPromises = uniqueUserIds.map(async (userId) => {
         try {
@@ -210,13 +210,13 @@ serve(async (req) => {
       .from('daily_digests')
       .select('*')
       .eq('user_id', targetUserId)
-      .eq('fish_slug', 'trip-planner')
+      .eq('fish_slug', 'stock-lookout')
       .eq('digest_date', todayStr)
       .maybeSingle();
 
     if (existingDigest && existingDigest.generation_status === 'success' && !force) {
       return new Response(
-        JSON.stringify({ status: 'skipped', message: "Today's digest already exists.", data: existingDigest }),
+        JSON.stringify({ status: 'skipped', message: "Today's stock digest already exists.", data: existingDigest }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -225,7 +225,7 @@ serve(async (req) => {
     const { data: contextRows, error: contextError } = await supabase
       .from('fish_context')
       .select('*')
-      .eq('fish_slug', 'trip-planner')
+      .eq('fish_slug', 'stock-lookout')
       .eq('user_id', targetUserId);
 
     if (contextError) {
@@ -233,15 +233,16 @@ serve(async (req) => {
     }
 
     const contextMap: Record<string, string> = {
-      home_city: 'Ottawa, Canada',
-      budget_range: 'Medium ($1,500–$3,000)',
-      trip_duration: 'Week (7–10 days)',
-      travel_style: 'Adventure, Nature & Wildlife',
-      travel_party: 'Solo',
-      passport_notes: 'Canadian Passport',
-      blackout_months: 'None',
-      visited_places: 'None',
-      dream_keywords: 'nature, active, scenic'
+      experience_level: 'Some Experience',
+      investing_goal: 'Steady long-term growth',
+      risk_reaction: 'Hold and wait it out',
+      stock_interests: 'Tech & AI, Growth Stocks',
+      time_horizon: '3–10 years',
+      position_size: '$500–$2,000',
+      markets: 'NYSE, NASDAQ (US)',
+      excluded_sectors: 'None',
+      tip_preference: 'Stocks trending right now',
+      current_holdings: 'None'
     };
 
     if (contextRows) {
@@ -270,32 +271,38 @@ serve(async (req) => {
     if (mock) {
       // Return fast mock data for testing
       parsedData = {
-        title: "Escape to Mock Island",
-        destination: "Mock City",
-        country: "Mockland",
-        region: "Mock Oceania",
-        headline: "A beautiful mock destination generated in 0 milliseconds.",
-        why_now: "This month is perfect for mock travel because of simulated weather.",
-        getting_there: "Take a mock flight from your local computer, estimated at $0 CAD.",
-        estimated_budget_low: 100,
-        estimated_budget_high: 500,
-        best_duration: "3-5 days",
-        best_for: "AI developers testing regression flows",
-        hidden_gem: "Check out the localhost port 5173 for a hidden gem view.",
-        one_action_today: "Run vitest to make this trip happen"
+        market_mood: "A highly positive mock market sentiment.",
+        market_mood_emoji: "🟢",
+        todays_theme: "Mock tech stocks are simulating significant growth.",
+        picks: [
+          {
+            ticker: "MOCK",
+            company_name: "Mocking Systems Corp",
+            market: "NASDAQ",
+            pick_type: "Momentum Play",
+            why_today: "It is simulating high investor demand.",
+            the_case_for: "Simulated market adoption is increasing.",
+            the_risk: "If Vitest stops running, this company goes bankrupt.",
+            time_horizon_fit: "Best for 1-2 day test holders",
+            confidence: "High",
+            one_thing_to_check: "Verify that index_test is green."
+          }
+        ],
+        disclaimer: "Mock disclaimer: this is simulated data."
       };
-      uniqueSources = ["https://example.com/mock-source-1", "https://example.com/mock-source-2"];
+      uniqueSources = ["https://example.com/mock-source-1"];
     } else {
       const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
       const currentMonth = months[new Date().getMonth()];
+      const currentDate = todayStr;
 
-      // Tavily Research Phase - 3 searches
+      // Tavily Research Phase - 4 searches
       const sources: string[] = [];
       
-      // Search 1: Destination Ideas
+      // Search 1: Today's Market Movers
       let search1Content = '';
       try {
-        const q1 = `best travel destinations ${currentMonth} 2026 budget ${contextMap.budget_range} travel style ${contextMap.travel_style}`;
+        const q1 = `stock market today ${currentDate} top movers gainers`;
         console.log(`Running Tavily Search 1: ${q1}`);
         const s1 = await tavilySearch(q1, activeTavilyKey);
         if (s1.results && s1.results.length > 0) {
@@ -304,29 +311,13 @@ serve(async (req) => {
         }
       } catch (e) {
         console.error("Tavily Search 1 failed:", e);
-        search1Content = "Search failed, defaulting to Gemini standard recommendations.";
+        search1Content = "Movers research failed, fallback to Gemini internal tracking.";
       }
 
-      // Secondary Decision Phase: Let Gemini select a specific destination from search 1
-      let destinationName = 'Azores, Portugal';
-      try {
-        const decisionPrompt = `You are a world-class travel planner. Given the following search results about ideal destinations for the month of ${currentMonth} under budget ${contextMap.budget_range} and style ${contextMap.travel_style}:
-        
-        ${search1Content}
-        
-        Select the single best destination (format: "City, Country" or "Region, Country"). Respond only with that selected destination, nothing else. No explanation, no quotes.`;
-        
-        const res = await callGeminiFlash(decisionPrompt, activeGeminiKey);
-        destinationName = res.trim().replace(/["']/g, '');
-        console.log(`Gemini Selected Destination: ${destinationName}`);
-      } catch (e) {
-        console.error("Gemini destination selection failed:", e);
-      }
-
-      // Search 2: Flight Estimates
+      // Search 2: Analyst Picks Matching Interests
       let search2Content = '';
       try {
-        const q2 = `flights from ${contextMap.home_city} to ${destinationName} price estimate`;
+        const q2 = `${contextMap.stock_interests} best stocks to watch ${currentMonth} 2026 analyst picks`;
         console.log(`Running Tavily Search 2: ${q2}`);
         const s2 = await tavilySearch(q2, activeTavilyKey);
         if (s2.results && s2.results.length > 0) {
@@ -335,13 +326,13 @@ serve(async (req) => {
         }
       } catch (e) {
         console.error("Tavily Search 2 failed:", e);
-        search2Content = "Flight searches failed, estimate flights using general airline routing.";
+        search2Content = "Analyst picks research failed.";
       }
 
-      // Search 3: Reddit Tips & Hidden Gems
+      // Search 3: Undervalued plays
       let search3Content = '';
       try {
-        const q3 = `${destinationName} local tips hidden gems reddit 2026`;
+        const q3 = `undervalued stocks ${contextMap.markets} ${contextMap.time_horizon} investor ${currentMonth} 2026`;
         console.log(`Running Tavily Search 3: ${q3}`);
         const s3 = await tavilySearch(q3, activeTavilyKey);
         if (s3.results && s3.results.length > 0) {
@@ -350,78 +341,99 @@ serve(async (req) => {
         }
       } catch (e) {
         console.error("Tavily Search 3 failed:", e);
-        search3Content = "No specific reddit tips returned, list standard local sights.";
+        search3Content = "Undervalued plays research failed.";
       }
 
-      // 4. Build Gemini Content Prompts
-      const prompt = `You are a world-class travel curator. Generate one daily personalized trip suggestion.
+      // Search 4: Community Sentiment
+      let search4Content = '';
+      try {
+        const q4 = `${contextMap.tip_preference} stock recommendations reddit wallstreetbets ${currentMonth} 2026`;
+        console.log(`Running Tavily Search 4: ${q4}`);
+        const s4 = await tavilySearch(q4, activeTavilyKey);
+        if (s4.results && s4.results.length > 0) {
+          search4Content = s4.results.map((r: any) => r.content).join('\n\n');
+          s4.results.forEach((r: any) => { if (r.url) sources.push(r.url); });
+        }
+      } catch (e) {
+        console.error("Tavily Search 4 failed:", e);
+        search4Content = "Community sentiment research failed.";
+      }
 
-USER PROFILE:
-- Flying from: ${contextMap.home_city}
-- Budget (per person): ${contextMap.budget_range} CAD
-- Trip length preference: ${contextMap.trip_duration}
-- Travel style: ${contextMap.travel_style}
-- Travels with: ${contextMap.travel_party}
-- Passport/visa notes: ${contextMap.passport_notes}
-- Blackout months: ${contextMap.blackout_months}
-- Already visited: ${contextMap.visited_places}
-- Dream trip keywords: ${contextMap.dream_keywords}
-- Current month: ${currentMonth}
+      // 4. Build Gemini Prompt
+      const prompt = `You are a sharp, well-researched stock market analyst generating a daily personalized stock lookout digest. You are NOT a licensed financial advisor — always include a brief disclaimer. Your job is to surface interesting, well-reasoned stock ideas based on real research.
 
-RESEARCH GATHERED TODAY:
-[Tavily Search 1 Results — Destination ideas]
+USER INVESTOR PROFILE:
+- Experience level: ${contextMap.experience_level}
+- Investing goal: ${contextMap.investing_goal}
+- Risk reaction: ${contextMap.risk_reaction}
+- Stock interests: ${contextMap.stock_interests}
+- Time horizon: ${contextMap.time_horizon}
+- Typical position size: ${contextMap.position_size}
+- Markets: ${contextMap.markets}
+- Excluded sectors: ${contextMap.excluded_sectors}
+- Tip preference: ${contextMap.tip_preference}
+- Currently holds: ${contextMap.current_holdings}
+- Today's date: ${currentDate}
+
+TODAY'S MARKET RESEARCH:
+[Tavily Search 1 — Today's movers]
 ${search1Content}
 
-[Tavily Search 2 Results — Flight info]
+[Tavily Search 2 — Analyst picks matching profile]
 ${search2Content}
 
-[Tavily Search 3 Results — Local tips]
+[Tavily Search 3 — Undervalued plays]
 ${search3Content}
 
-Based on this user profile and today's research, generate a single destination recommendation (ideally matching ${destinationName}).
+[Tavily Search 4 — Community sentiment]
+${search4Content}
 
-Respond ONLY in valid JSON. No markdown, no preamble, no explanation. Exactly this structure:
+Based on this profile and today's research, generate a daily stock lookout digest with exactly 3 stock or ETF ideas. Each idea should be tailored to this specific investor's profile. Do NOT recommend anything they already hold.
+Mix the pick types based on the user's tip_preference. If the user is a beginner, weight toward ETFs and safe compounders. If they're experienced and want high-risk, include a speculative pick.
+
+Respond ONLY in valid JSON, no markdown, no preamble, no explanation:
 {
-  "title": "string — evocative headline like 'Escape to the Azores'",
-  "destination": "string — city or region name",
-  "country": "string",
-  "region": "string — e.g. 'Western Europe'",
-  "headline": "string — one sentence hook, why this place right now",
-  "why_now": "string — 2-3 sentences on why this month is ideal",
-  "getting_there": "string — practical flight info from their home city, connections, estimate",
-  "estimated_budget_low": number,
-  "estimated_budget_high": number,
-  "best_duration": "string — e.g. '7-10 days'",
-  "best_for": "string — e.g. 'Couples who love nature'",
-  "hidden_gem": "string — one specific local tip they won't find on TripAdvisor",
-  "one_action_today": "string — one concrete thing they can do today to make this trip happen"
+  "market_mood": "string — one sentence on today's overall market vibe",
+  "market_mood_emoji": "string — one emoji representing market mood (e.g. 🟢 🔴 🟡 ⚡)",
+  "picks": [
+    {
+      "ticker": "string — e.g. NVDA or XEQT",
+      "company_name": "string — full company or fund name",
+      "market": "string — e.g. NASDAQ or TSX",
+      "pick_type": "string — Momentum Play / Safe Compounder / Hidden Gem / ETF Pick / Analyst Upgrade / Speculative",
+      "why_today": "string — 2-3 sentences on why this is interesting right now",
+      "the_case_for": "string — the bull case in 1-2 sentences",
+      "the_risk": "string — honest 1 sentence on the main downside risk",
+      "time_horizon_fit": "string — e.g. Best for 3-5 year holders",
+      "confidence": "string — Low / Medium / High",
+      "one_thing_to_check": "string — one specific thing the user should verify before acting"
+    }
+  ],
+  "todays_theme": "string — overarching theme connecting today's picks, e.g. 'AI infrastructure spending is accelerating'",
+  "disclaimer": "string — brief reminder this is not financial advice"
 }`;
 
       // 5. Call Gemini 1.5 Flash
-      console.log("Invoking Gemini 1.5 Flash Content Generation...");
+      console.log("Invoking Gemini 1.5 Flash Content Generation (Stocks)...");
       const rawResult = await callGeminiFlash(prompt, activeGeminiKey, true);
       const cleanedJson = cleanText(rawResult);
       parsedData = JSON.parse(cleanedJson);
+      if (!parsedData.picks || parsedData.picks.length === 0) {
+        throw new Error("Gemini returned invalid structure: picks array missing or empty.");
+      }
       uniqueSources = [...new Set(sources)].slice(0, 5);
     }
 
     // 6. Map and Save to Supabase (associating with user_id)
+    const rawBodyMarkdown = mock ? JSON.stringify(parsedData) : JSON.stringify(parsedData);
     const digestPayload = {
       user_id: targetUserId,
-      fish_slug: 'trip-planner',
+      fish_slug: 'stock-lookout',
       digest_date: todayStr,
-      title: parsedData.title,
-      destination: parsedData.destination,
-      country: parsedData.country,
-      region: parsedData.region,
-      headline: parsedData.headline,
-      body_markdown: parsedData.why_now,
-      estimated_budget_low: Number(parsedData.estimated_budget_low) || 0,
-      estimated_budget_high: Number(parsedData.estimated_budget_high) || 0,
-      best_time_to_go: `${parsedData.best_duration} | ${parsedData.best_for}`,
-      flight_info: parsedData.getting_there,
-      hidden_gem: parsedData.hidden_gem,
-      one_action_today: parsedData.one_action_today,
+      title: parsedData.todays_theme,
+      destination: parsedData.market_mood_emoji,
+      headline: parsedData.market_mood,
+      body_markdown: rawBodyMarkdown,
       research_sources: uniqueSources,
       model_used: mock ? 'mock-model' : 'gemini-1.5-flash',
       generation_status: 'success'
@@ -434,7 +446,7 @@ Respond ONLY in valid JSON. No markdown, no preamble, no explanation. Exactly th
       .single();
 
     if (saveError) {
-      throw new Error(`Failed to save digest to Supabase: ${saveError.message}`);
+      throw new Error(`Failed to save stock digest to Supabase: ${saveError.message}`);
     }
 
     return new Response(
@@ -443,7 +455,7 @@ Respond ONLY in valid JSON. No markdown, no preamble, no explanation. Exactly th
     );
 
   } catch (err: any) {
-    console.error("Critical error in digest execution:", err);
+    console.error("Critical error in stock digest execution:", err);
 
     // Attempt to save failure state if user context is resolved
     try {
@@ -454,13 +466,11 @@ Respond ONLY in valid JSON. No markdown, no preamble, no explanation. Exactly th
         const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
         const todayStr = new Date().toISOString().split('T')[0];
         
-        // Extract auth token to try and find the user
         let errUserId: string | null = null;
         const authHeader = req.headers.get('Authorization') || '';
         if (authHeader.startsWith('Bearer ')) {
           const token = authHeader.substring(7);
           if (token === SUPABASE_SERVICE_ROLE_KEY) {
-            // Service role call - extract from body if possible
             try {
               const body = await req.json();
               errUserId = body?.user_id || null;
@@ -476,7 +486,7 @@ Respond ONLY in valid JSON. No markdown, no preamble, no explanation. Exactly th
             .from('daily_digests')
             .upsert({
               user_id: errUserId,
-              fish_slug: 'trip-planner',
+              fish_slug: 'stock-lookout',
               digest_date: todayStr,
               title: 'Curation Failed',
               generation_status: 'failed',

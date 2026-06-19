@@ -68,17 +68,17 @@ body {
   animation: light-pulse 8s ease-in-out infinite;
 }
 
-/* Bubbles rising */
+/* Bubbles rising and wobbling */
 @keyframes rise {
   0% {
     transform: translateY(110vh) translateX(0);
     opacity: 0;
   }
   10% {
-    opacity: 0.6;
+    opacity: 0.8;
   }
   90% {
-    opacity: 0.6;
+    opacity: 0.8;
   }
   100% {
     transform: translateY(-20vh) translateX(var(--drift));
@@ -88,13 +88,101 @@ body {
 
 .bubble {
   position: absolute;
-  bottom: -20px;
-  background: radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.4) 0%, rgba(255, 255, 255, 0.05) 70%, rgba(0, 229, 255, 0.25) 100%);
-  border: 0.5px solid rgba(255, 255, 255, 0.15);
-  border-radius: 50%;
+  bottom: -40px;
   pointer-events: none;
   animation: rise 12s linear infinite;
-  box-shadow: 0 0 6px rgba(0, 229, 255, 0.1);
+  z-index: 5;
+}
+
+.bubble-inner {
+  width: 100%;
+  height: 100%;
+  background: radial-gradient(circle at 35% 35%, rgba(255, 255, 255, 0.6) 0%, rgba(255, 255, 255, 0.15) 50%, rgba(0, 229, 255, 0.35) 100%);
+  border: 0.5px solid rgba(255, 255, 255, 0.25);
+  border-radius: 50%;
+  box-shadow: 0 0 8px rgba(0, 229, 255, 0.2);
+  animation: bubble-wobble 2s ease-in-out infinite alternate;
+}
+
+@keyframes bubble-wobble {
+  0% {
+    transform: translateX(-8px) scaleX(0.85) scaleY(1.05);
+  }
+  100% {
+    transform: translateX(8px) scaleX(1.15) scaleY(0.9);
+  }
+}
+
+/* Floating micro-particles (Marine Snow) */
+@keyframes particle-drift {
+  0% {
+    transform: translate(0, 105vh) scale(0.6) rotate(0deg);
+    opacity: 0;
+  }
+  15% {
+    opacity: 0.5;
+  }
+  85% {
+    opacity: 0.5;
+  }
+  100% {
+    transform: translate(var(--drift-x), -10vh) scale(1.4) rotate(360deg);
+    opacity: 0;
+  }
+}
+
+.particle {
+  position: absolute;
+  bottom: -20px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 40% 40%, rgba(255, 255, 255, 0.7) 0%, rgba(0, 229, 255, 0.3) 100%);
+  pointer-events: none;
+  animation: particle-drift 20s linear infinite;
+  filter: blur(0.3px);
+  z-index: 4;
+}
+
+/* Water Caustics (Shimmering Light Effects) */
+@keyframes caustics-drift-1 {
+  0% {
+    background-position: 0px 0px;
+  }
+  100% {
+    background-position: 600px 300px;
+  }
+}
+
+@keyframes caustics-drift-2 {
+  0% {
+    background-position: 0px 0px;
+  }
+  100% {
+    background-position: -500px 400px;
+  }
+}
+
+.caustics-layer-1 {
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.04), transparent 55%);
+  background-size: 80px 80px;
+  animation: caustics-drift-1 25s linear infinite;
+  mix-blend-mode: overlay;
+  pointer-events: none;
+  opacity: 0.55;
+  z-index: 2;
+}
+
+.caustics-layer-2 {
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(circle at 50% 50%, rgba(0, 229, 255, 0.03), transparent 45%);
+  background-size: 110px 110px;
+  animation: caustics-drift-2 30s linear infinite;
+  mix-blend-mode: color-dodge;
+  pointer-events: none;
+  opacity: 0.6;
+  z-index: 3;
 }
 
 /* Seabed Swaying animation */
@@ -116,6 +204,15 @@ body {
   }
 }
 
+@keyframes sway-wide {
+  0%, 100% {
+    transform: rotate(0deg);
+  }
+  50% {
+    transform: rotate(5deg);
+  }
+}
+
 .seabed-kelp-1 {
   transform-origin: bottom center;
   animation: sway 6s ease-in-out infinite;
@@ -126,33 +223,65 @@ body {
   animation: sway-reverse 7s ease-in-out infinite;
 }
 
+.seabed-kelp-3 {
+  transform-origin: bottom center;
+  animation: sway-wide 8s ease-in-out infinite;
+}
+
 /* ---------------------------------------------------- */
 /* Fish Swim & Glow Animations */
 /* ---------------------------------------------------- */
 
-/* Swim figure-eight path */
+/* Swim figure-eight path with banking (Fixed direction) */
 @keyframes swim-eight {
   0% {
-    transform: translate(0px, 0px) scaleX(1);
+    transform: translate(0px, 0px) scaleX(-1) rotate(0deg);
+  }
+  12% {
+    transform: translate(12vw, -25px) scaleX(-1) rotate(-5deg);
   }
   25% {
-    transform: translate(25vw, -30px) scaleX(1);
+    transform: translate(25vw, -35px) scaleX(-1) rotate(0deg);
+  }
+  38% {
+    transform: translate(38vw, -10px) scaleX(-1) rotate(5deg);
   }
   48% {
-    transform: translate(50vw, 15px) scaleX(1);
+    transform: translate(50vw, 15px) scaleX(-1) rotate(0deg);
   }
   50% {
-    transform: translate(50vw, 15px) scaleX(-1);
+    transform: translate(50vw, 15px) scaleX(1) rotate(0deg);
+  }
+  62% {
+    transform: translate(38vw, -2px) scaleX(1) rotate(-5deg);
   }
   75% {
-    transform: translate(25vw, -20px) scaleX(-1);
+    transform: translate(25vw, -20px) scaleX(1) rotate(0deg);
+  }
+  88% {
+    transform: translate(12vw, -10px) scaleX(1) rotate(5deg);
   }
   98% {
-    transform: translate(0px, 0px) scaleX(-1);
+    transform: translate(0px, 0px) scaleX(1) rotate(0deg);
   }
   100% {
-    transform: translate(0px, 0px) scaleX(1);
+    transform: translate(0px, 0px) scaleX(-1) rotate(0deg);
   }
+}
+
+/* Tail-wag animation (Refined gentler angle) */
+@keyframes tail-wag {
+  0%, 100% {
+    transform: rotate(-5deg);
+  }
+  50% {
+    transform: rotate(5deg);
+  }
+}
+
+.fish-tail {
+  transform-origin: 115px 50px;
+  animation: tail-wag 0.45s ease-in-out infinite;
 }
 
 .fish-container {
@@ -170,6 +299,67 @@ body {
   animation-duration: 8s !important;
 }
 
+.fish-fast .fish-tail {
+  animation-duration: 0.18s !important;
+}
+
+/* Stock Lookout Fish Swim & Glow Animations (Fixed direction & de-synchronized) */
+@keyframes swim-stock {
+  0% {
+    transform: translate(0px, 0px) scaleX(-1) rotate(0deg);
+  }
+  12% {
+    transform: translate(12vw, -12px) scaleX(-1) rotate(-3deg);
+  }
+  25% {
+    transform: translate(25vw, -20px) scaleX(-1) rotate(0deg);
+  }
+  38% {
+    transform: translate(38vw, -8px) scaleX(-1) rotate(3deg);
+  }
+  48% {
+    transform: translate(50vw, 10px) scaleX(-1) rotate(0deg);
+  }
+  50% {
+    transform: translate(50vw, 10px) scaleX(1) rotate(0deg);
+  }
+  62% {
+    transform: translate(38vw, -2px) scaleX(1) rotate(-3deg);
+  }
+  75% {
+    transform: translate(25vw, -15px) scaleX(1) rotate(0deg);
+  }
+  88% {
+    transform: translate(12vw, -8px) scaleX(1) rotate(3deg);
+  }
+  98% {
+    transform: translate(0px, 0px) scaleX(1) rotate(0deg);
+  }
+  100% {
+    transform: translate(0px, 0px) scaleX(-1) rotate(0deg);
+  }
+}
+
+.stock-fish-container {
+  position: absolute;
+  top: 52%;
+  left: 15%;
+  width: 150px;
+  height: 120px;
+  cursor: pointer;
+  z-index: 10;
+  animation: swim-stock 14s ease-in-out infinite;
+  animation-delay: -6s; /* Offset from Clownfish */
+}
+
+.stock-fish-fast {
+  animation-duration: 6s !important;
+}
+
+.stock-fish-fast .fish-tail {
+  animation-duration: 0.12s !important;
+}
+
 /* Fish status glows */
 @keyframes glow-default {
   0%, 100% {
@@ -180,12 +370,30 @@ body {
   }
 }
 
+@keyframes glow-stock-default {
+  0%, 100% {
+    filter: drop-shadow(0 0 10px rgba(30, 136, 229, 0.4));
+  }
+  50% {
+    filter: drop-shadow(0 0 16px rgba(30, 136, 229, 0.6));
+  }
+}
+
 @keyframes glow-fed {
   0%, 100% {
     filter: drop-shadow(0 0 15px rgba(0, 229, 255, 0.7)) drop-shadow(0 0 25px rgba(0, 229, 255, 0.3));
   }
   50% {
     filter: drop-shadow(0 0 25px rgba(0, 229, 255, 0.9)) drop-shadow(0 0 45px rgba(0, 229, 255, 0.5));
+  }
+}
+
+@keyframes glow-stock-fed {
+  0%, 100% {
+    filter: drop-shadow(0 0 15px rgba(30, 136, 229, 0.7)) drop-shadow(0 0 25px rgba(30, 136, 229, 0.3));
+  }
+  50% {
+    filter: drop-shadow(0 0 25px rgba(30, 136, 229, 0.9)) drop-shadow(0 0 45px rgba(30, 136, 229, 0.5));
   }
 }
 
@@ -202,33 +410,124 @@ body {
   animation: glow-default 3s ease-in-out infinite;
 }
 
+.fish-glow-stock-default {
+  animation: glow-stock-default 3s ease-in-out infinite;
+}
+
 .fish-glow-fed {
   animation: glow-fed 2.5s ease-in-out infinite;
+}
+
+.fish-glow-stock-fed {
+  animation: glow-stock-fed 2.5s ease-in-out infinite;
 }
 
 .fish-glow-failed {
   animation: glow-failed 3s ease-in-out infinite;
 }
 
-/* Frosted glass cards */
+/* Premium frosted glass panels */
 .frosted-glass {
-  background: rgba(5, 13, 26, 0.94);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  background: rgba(4, 12, 24, 0.85);
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  box-shadow: 0 12px 40px 0 rgba(0, 0, 0, 0.5);
+}
+
+.frosted-glass-premium {
+  background: linear-gradient(135deg, rgba(6, 18, 36, 0.9) 0%, rgba(2, 8, 16, 0.95) 100%);
+  backdrop-filter: blur(28px) saturate(200%);
+  -webkit-backdrop-filter: blur(28px) saturate(200%);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  box-shadow: 0 16px 48px 0 rgba(0, 0, 0, 0.6), inset 0 1px 1px rgba(255, 255, 255, 0.1);
 }
 
 .frosted-glass-light {
-  background: rgba(255, 255, 255, 0.03);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
+  background: rgba(255, 255, 255, 0.02);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
   border: 1px solid rgba(255, 255, 255, 0.05);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 /* Glass-like shining effect on hover */
 .glass-glow-hover:hover {
-  border-color: rgba(0, 229, 255, 0.25);
-  box-shadow: 0 0 15px rgba(0, 229, 255, 0.1);
+  border-color: rgba(0, 229, 255, 0.35);
+  box-shadow: 0 0 20px rgba(0, 229, 255, 0.15), inset 0 0 8px rgba(0, 229, 255, 0.05);
+  transform: translateY(-2px);
+}
+
+.glass-glow-hover-stock:hover {
+  border-color: rgba(30, 136, 229, 0.45);
+  box-shadow: 0 0 20px rgba(30, 136, 229, 0.2), inset 0 0 8px rgba(30, 136, 229, 0.08);
+  transform: translateY(-2px);
+}
+
+/* Fish hover zoom and tilt interactions */
+.fish-container, .stock-fish-container {
+  transition: filter 0.35s ease;
+}
+.fish-container:hover svg, .stock-fish-container:hover svg {
+  transform: scale(1.1) rotate(4deg);
+  filter: drop-shadow(0 0 20px rgba(0, 229, 255, 0.6));
+}
+.fish-container svg, .stock-fish-container svg {
+  transition: transform 0.4s cubic-bezier(0.25, 0.8, 0.25, 1), filter 0.4s ease;
+}
+
+
+/* Accent Glowing Borders */
+.neon-border-blue {
+  border: 1px solid rgba(0, 229, 255, 0.15);
+  box-shadow: 0 0 15px rgba(0, 229, 255, 0.05), inset 0 0 10px rgba(0, 229, 255, 0.02);
+}
+
+.neon-border-blue-active {
+  border-color: rgba(0, 229, 255, 0.4);
+  box-shadow: 0 0 25px rgba(0, 229, 255, 0.15), inset 0 0 12px rgba(0, 229, 255, 0.05);
+}
+
+.neon-border-stock {
+  border: 1px solid rgba(30, 136, 229, 0.2);
+  box-shadow: 0 0 15px rgba(30, 136, 229, 0.05), inset 0 0 10px rgba(30, 136, 229, 0.02);
+}
+
+.neon-border-stock-active {
+  border-color: rgba(30, 136, 229, 0.5);
+  box-shadow: 0 0 25px rgba(30, 136, 229, 0.2), inset 0 0 12px rgba(30, 136, 229, 0.08);
+}
+
+.neon-border-coral {
+  border: 1px solid rgba(255, 107, 71, 0.15);
+  box-shadow: 0 0 15px rgba(255, 107, 71, 0.05), inset 0 0 10px rgba(255, 107, 71, 0.02);
+}
+
+.neon-border-coral-active {
+  border-color: rgba(255, 107, 71, 0.4);
+  box-shadow: 0 0 25px rgba(255, 107, 71, 0.15), inset 0 0 12px rgba(255, 107, 71, 0.05);
+}
+
+/* Custom premium switch toggle */
+.premium-switch-track {
+  width: 44px;
+  height: 24px;
+  border-radius: 9999px;
+  padding: 2px;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.premium-switch-handle {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background-color: white;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
 /* Custom pulse animations */
@@ -238,12 +537,30 @@ body {
     opacity: 0.9;
   }
   50% {
-    transform: scale(1.3);
+    transform: scale(1.15);
     opacity: 1;
-    box-shadow: 0 0 12px var(--coral-warm);
+    box-shadow: 0 0 15px var(--coral-warm);
   }
 }
 
 .badge-pulse {
   animation: dot-pulse 1.8s ease-in-out infinite;
 }
+
+/* Custom scrollbars */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.15);
+  border-radius: 10px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.25);
+}
+

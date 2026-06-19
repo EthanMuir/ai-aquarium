@@ -4,68 +4,149 @@ import AquariumTank from './components/AquariumTank';
 import OnboardingQuiz from './components/OnboardingQuiz';
 import DigestPanel from './components/DigestPanel';
 import SettingsPanel from './components/SettingsPanel';
-import PinGate from './components/PinGate';
+import AuthGate from './components/AuthGate';
 import { Settings, Shield, AlertCircle } from 'lucide-react';
 
 export default function App() {
   const [dbStatus, setDbStatus] = useState('loading'); // 'loading' | 'ready' | 'missing_tables'
-  const [pinEnabled, setPinEnabled] = useState(false);
-  const [pinCode, setPinCode] = useState('1234');
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [quizDone, setQuizDone] = useState(false);
+  const [session, setSession] = useState(null);
   
-  // Quiz context key-values
-  const [quizContext, setQuizContext] = useState({});
+  // Double Quiz status states
+  const [tripQuizDone, setTripQuizDone] = useState(false);
+  const [stockQuizDone, setStockQuizDone] = useState(false);
+  
+  // Track which quiz to show
+  const [quizSlug, setQuizSlug] = useState('trip-planner');
+
+  // persistent active status for the two fish
+  const [tripFishActive, setTripFishActive] = useState(true);
+  const [stockFishActive, setStockFishActive] = useState(true);
+
+  // Quiz context key-values for both fish
+  const [tripQuizContext, setTripQuizContext] = useState({});
+  const [stockQuizContext, setStockQuizContext] = useState({});
   const [homeCity, setHomeCity] = useState('');
 
-  // Digests history
+  // Digests history (contains both Trip Planner and Stock Lookout digests)
   const [digests, setDigests] = useState([]);
-  const [digestState, setDigestState] = useState('none'); // 'none' | 'generating' | 'ready' | 'failed'
+  
+  // Digest visual states for both fish
+  const [tripDigestState, setTripDigestState] = useState('none'); // 'none' | 'generating' | 'ready' | 'failed'
+  const [stockDigestState, setStockDigestState] = useState('none'); // 'none' | 'generating' | 'ready' | 'failed'
 
   // Modal / panel toggles
   const [isQuizOpen, setIsQuizOpen] = useState(false);
   const [isDigestOpen, setIsDigestOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [activeDigestTab, setActiveDigestTab] = useState('trip-planner');
+
+  // AI Curation Energy Tracker State (Shared)
+  const [energy, setEnergy] = useState(5);
+  const [lastRechargedAt, setLastRechargedAt] = useState(Date.now());
+  const [secondsToRecharge, setSecondsToRecharge] = useState(0);
+
+  const FOUR_HOURS_IN_MS = 4 * 60 * 60 * 1000;
+
+  // Load energy from localStorage on mount and compute recovered charges
+  useEffect(() => {
+    const savedEnergy = localStorage.getItem('aquarium_energy');
+    const savedTime = localStorage.getItem('aquarium_energy_time');
+    
+    if (savedEnergy !== null && savedTime !== null) {
+      const parsedEnergy = parseInt(savedEnergy, 10);
+      const parsedTime = parseInt(savedTime, 10);
+      
+      const now = Date.now();
+      const msPassed = now - parsedTime;
+      const recovered = Math.floor(msPassed / FOUR_HOURS_IN_MS);
+      
+      if (recovered > 0) {
+        const nextEnergy = Math.min(5, parsedEnergy + recovered);
+        setEnergy(nextEnergy);
+        if (nextEnergy === 5) {
+          setLastRechargedAt(now);
+          localStorage.setItem('aquarium_energy', '5');
+          localStorage.setItem('aquarium_energy_time', now.toString());
+        } else {
+          const nextTime = parsedTime + (recovered * FOUR_HOURS_IN_MS);
+          setLastRechargedAt(nextTime);
+          localStorage.setItem('aquarium_energy', nextEnergy.toString());
+          localStorage.setItem('aquarium_energy_time', nextTime.toString());
+        }
+      } else {
+        setEnergy(parsedEnergy);
+        setLastRechargedAt(parsedTime);
+      }
+    } else {
+      setEnergy(5);
+      const now = Date.now();
+      setLastRechargedAt(now);
+      localStorage.setItem('aquarium_energy', '5');
+      localStorage.setItem('aquarium_energy_time', now.toString());
+    }
+  }, []);
+
+  // Countdown timer and auto-increment loop
+  useEffect(() => {
+    if (energy >= 5) {
+      setSecondsToRecharge(0);
+      return;
+    }
+
+    const interval = setInterval(() => {
+      const now = Date.now();
+      const msPassed = now - lastRechargedAt;
+      
+      if (msPassed >= FOUR_HOURS_IN_MS) {
+        setEnergy((prev) => {
+          const nextEnergy = Math.min(5, prev + 1);
+          const nextTime = lastRechargedAt + FOUR_HOURS_IN_MS;
+          setLastRechargedAt(nextTime);
+          localStorage.setItem('aquarium_energy', nextEnergy.toString());
+          localStorage.setItem('aquarium_energy_time', nextTime.toString());
+          return nextEnergy;
+        });
+      } else {
+        const remainingMs = FOUR_HOURS_IN_MS - msPassed;
+        setSecondsToRecharge(Math.max(0, Math.ceil(remainingMs / 1000)));
+      }
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [energy, lastRechargedAt]);
+
+  const consumeEnergyCharge = () => {
+    setEnergy((prev) => {
+      if (prev <= 0) return 0;
+      const nextEnergy = prev - 1;
+      const now = Date.now();
+      const nextTime = prev === 5 ? now : lastRechargedAt;
+      
+      setLastRechargedAt(nextTime);
+      localStorage.setItem('aquarium_energy', nextEnergy.toString());
+      localStorage.setItem('aquarium_energy_time', nextTime.toString());
+      return nextEnergy;
+    });
+  };
 
   // Initialize and check database tables
   useEffect(() => {
     async function initApp() {
       try {
-        // 1. Check if we can query app_settings (indicates if schema is run)
-        const { data: settingsData, error: settingsError } = await supabase
-          .from('app_settings')
-          .select('*');
+        // Check if we can query the fish table
+        const { error } = await supabase.from('fish').select('slug').limit(1);
 
-        if (settingsError) {
-          console.error('Database connection or table missing error:', settingsError);
+        if (error) {
+          console.error('Database connection or table missing error:', error);
           setDbStatus('missing_tables');
           return;
         }
 
         setDbStatus('ready');
 
-        // Parse global settings
-        const enabledSetting = settingsData.find(s => s.key === 'pin_enabled');
-        const codeSetting = settingsData.find(s => s.key === 'pin');
-        
-        const isEnabled = enabledSetting?.value === 'true';
-        const code = codeSetting?.value || '1234';
-        
-        setPinEnabled(isEnabled);
-        setPinCode(code);
-
-        // Check local session authentication
-        if (sessionStorage.getItem('aquarium_authenticated') === 'true') {
-          setIsAuthenticated(true);
-        }
-
-        // 2. Check onboarding quiz state
-        const localQuizDone = localStorage.getItem('aquarium_quiz_done') === 'true';
-        setQuizDone(localQuizDone);
-        
-        // Fetch context from DB regardless of local storage to keep sync
-        await fetchFishContext();
-        await fetchDigests();
+        // Check local session
+        const { data: { session: currentSession } } = await supabase.auth.getSession();
+        setSession(currentSession);
 
       } catch (err) {
         console.error('Initialization crash:', err);
@@ -74,24 +155,81 @@ export default function App() {
     }
 
     initApp();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, currentSession) => {
+      setSession(currentSession);
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
+
+  // Fetch data only when session is present
+  useEffect(() => {
+    if (session) {
+      fetchFishContext();
+      fetchDigests();
+      fetchFishStatus();
+    } else {
+      setTripQuizContext({});
+      setStockQuizContext({});
+      setDigests([]);
+      setTripQuizDone(false);
+      setStockQuizDone(false);
+    }
+  }, [session]);
+
+  const handleAddAgent = (slug) => {
+    setQuizSlug(slug);
+    setIsQuizOpen(true);
+  };
+
+  const fetchFishStatus = async () => {
+    try {
+      const { data: fishData, error: fishError } = await supabase
+        .from('fish')
+        .select('slug, is_active');
+      if (!fishError && fishData) {
+        const trip = fishData.find(f => f.slug === 'trip-planner');
+        if (trip) setTripFishActive(trip.is_active !== false);
+        const stock = fishData.find(f => f.slug === 'stock-lookout');
+        if (stock) setStockFishActive(stock.is_active !== false);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
 
   const fetchFishContext = async () => {
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
       const { data, error } = await supabase
         .from('fish_context')
-        .select('context_key, context_value')
-        .eq('fish_slug', 'trip-planner');
+        .select('fish_slug, context_key, context_value')
+        .eq('user_id', user.id);
 
       if (!error && data) {
-        const contextMap = {};
-        data.forEach(row => {
-          contextMap[row.context_key] = row.context_value;
-        });
-        setQuizContext(contextMap);
+        const tripMap = {};
+        const stockMap = {};
         
-        if (contextMap.home_city) {
-          setHomeCity(contextMap.home_city);
+        data.forEach(row => {
+          if (row.fish_slug === 'trip-planner') {
+            tripMap[row.context_key] = row.context_value;
+          } else if (row.fish_slug === 'stock-lookout') {
+            stockMap[row.context_key] = row.context_value;
+          }
+        });
+
+        setTripQuizContext(tripMap);
+        setStockQuizContext(stockMap);
+        
+        // Dynamically set quiz complete status
+        setTripQuizDone(Object.keys(tripMap).length > 0);
+        setStockQuizDone(Object.keys(stockMap).length > 0);
+        
+        if (tripMap.home_city) {
+          setHomeCity(tripMap.home_city);
         }
       }
     } catch (e) {
@@ -101,30 +239,47 @@ export default function App() {
 
   const fetchDigests = async () => {
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
       const { data, error } = await supabase
         .from('daily_digests')
         .select('*')
-        .eq('fish_slug', 'trip-planner')
+        .eq('user_id', user.id)
+        .in('fish_slug', ['trip-planner', 'stock-lookout'])
         .order('digest_date', { ascending: false });
 
       if (!error && data) {
         setDigests(data);
         
-        // Update fish visual state based on digests
-        if (data.length > 0) {
-          const latest = data[0];
-          // Check if latest digest matches today's date in local time
-          const todayStr = new Date().toISOString().split('T')[0];
-          
+        // Update Trip Planner visual state
+        const tripList = data.filter(d => d.fish_slug === 'trip-planner');
+        if (tripList.length > 0) {
+          const latest = tripList[0];
           if (latest.generation_status === 'failed') {
-            setDigestState('failed');
+            setTripDigestState('failed');
           } else if (latest.generation_status === 'success') {
-            setDigestState('ready');
+            setTripDigestState('ready');
           } else {
-            setDigestState('none');
+            setTripDigestState('none');
           }
         } else {
-          setDigestState('none');
+          setTripDigestState('none');
+        }
+
+        // Update Stock Lookout visual state
+        const stockList = data.filter(d => d.fish_slug === 'stock-lookout');
+        if (stockList.length > 0) {
+          const latest = stockList[0];
+          if (latest.generation_status === 'failed') {
+            setStockDigestState('failed');
+          } else if (latest.generation_status === 'success') {
+            setStockDigestState('ready');
+          } else {
+            setStockDigestState('none');
+          }
+        } else {
+          setStockDigestState('none');
         }
       }
     } catch (e) {
@@ -132,89 +287,130 @@ export default function App() {
     }
   };
 
-  const handleVerifyPin = () => {
-    setIsAuthenticated(true);
-    sessionStorage.setItem('aquarium_authenticated', 'true');
-  };
-
   const handleQuizComplete = async () => {
-    setQuizDone(true);
-    setIsQuizOpen(false);
     await fetchFishContext();
     await fetchDigests();
+    setIsQuizOpen(false);
   };
 
-  const handleRetakeQuiz = () => {
-    localStorage.removeItem('aquarium_quiz_done');
-    setQuizDone(false);
+  const handleRetakeQuiz = (slug) => {
+    if (slug === 'trip-planner') {
+      setTripQuizDone(false);
+    } else {
+      setStockQuizDone(false);
+    }
+    setQuizSlug(slug);
     setIsSettingsOpen(false);
     setIsQuizOpen(true);
   };
 
-  const handleDigestGenerated = async (failed = false) => {
-    if (failed) {
-      setDigestState('failed');
-      return;
+  const handleDigestGenerated = async (slug, failed = false) => {
+    if (slug === 'trip-planner') {
+      if (failed) {
+        setTripDigestState('failed');
+        return;
+      }
+      setTripDigestState('ready');
+    } else {
+      if (failed) {
+        setStockDigestState('failed');
+        return;
+      }
+      setStockDigestState('ready');
     }
     
-    // Set to ready state while loading new list
-    setDigestState('ready');
+    consumeEnergyCharge();
     await fetchDigests();
   };
 
-  const handleTogglePin = async () => {
-    const nextVal = !pinEnabled;
+  const handleToggleFishActive = async (slug) => {
+    const nextVal = slug === 'trip-planner' ? !tripFishActive : !stockFishActive;
     try {
       const { error } = await supabase
-        .from('app_settings')
-        .upsert({ key: 'pin_enabled', value: nextVal ? 'true' : 'false' });
+        .from('fish')
+        .update({ is_active: nextVal })
+        .eq('slug', slug);
 
       if (!error) {
-        setPinEnabled(nextVal);
+        if (slug === 'trip-planner') {
+          setTripFishActive(nextVal);
+        } else {
+          setStockFishActive(nextVal);
+        }
+      } else {
+        console.error("Failed to update fish visibility:", error);
       }
     } catch (err) {
       console.error(err);
     }
   };
 
-  const handleUpdatePinCode = (code) => {
-    setPinCode(code);
+  const handleFishClick = (slug) => {
+    if (slug === 'trip-planner') {
+      if (!tripQuizDone) {
+        setQuizSlug('trip-planner');
+        setIsQuizOpen(true);
+      } else {
+        setActiveDigestTab('trip-planner');
+        setIsDigestOpen(true);
+      }
+    } else if (slug === 'stock-lookout') {
+      if (!stockQuizDone) {
+        setQuizSlug('stock-lookout');
+        setIsQuizOpen(true);
+      } else {
+        setActiveDigestTab('stock-lookout');
+        setIsDigestOpen(true);
+      }
+    }
+  };
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    setSession(null);
+    setIsSettingsOpen(false);
   };
 
   // Determine last fed metadata message for header
   const getLastFedText = () => {
-    if (!quizDone) {
+    if (!tripQuizDone && !stockQuizDone) {
       return "Setup profile to begin feeding";
     }
-    if (digestState === 'generating') {
+    if (tripDigestState === 'generating' || stockDigestState === 'generating') {
       return "Agent is feeding now...";
     }
-    if (!digests || digests.length === 0) {
+    
+    const successfulDigests = digests?.filter(d => d.generation_status === 'success') || [];
+    if (successfulDigests.length === 0) {
       return "Next feed: Tomorrow, 6:00 AM";
     }
-    const latest = digests[0];
+    
+    const sorted = [...successfulDigests].sort((a, b) => {
+      const dateA = new Date(a.created_at || a.digest_date);
+      const dateB = new Date(b.created_at || b.digest_date);
+      return dateB - dateA;
+    });
+    
+    const latest = sorted[0];
     const dateStr = latest.digest_date;
     const todayStr = new Date().toISOString().split('T')[0];
     
-    if (dateStr === todayStr && latest.generation_status === 'success') {
+    if (dateStr === todayStr) {
       const timeStr = latest.created_at 
         ? new Date(latest.created_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) 
         : "6:02 AM";
-      return `Last fed: Today, ${timeStr}`;
+      const name = latest.fish_slug === 'trip-planner' ? 'Trip Planner' : 'Stock Lookout';
+      return `Last fed (${name}): Today, ${timeStr}`;
     } else {
       return "Next feed: Tomorrow, 6:00 AM";
     }
   };
 
-  // --------------------------------------------------------
-  // Views Handling
-  // --------------------------------------------------------
-
   if (dbStatus === 'loading') {
     return (
       <div className="min-h-screen bg-abyss flex items-center justify-center text-sea-foam/50 font-mono text-xs">
         <span className="w-5 h-5 border-2 border-bioluminescent/25 border-t-bioluminescent rounded-full animate-spin mr-3" />
-        Connecting to the Aquarium database...
+        Connecting to the AIquarium database...
       </div>
     );
   }
@@ -244,19 +440,9 @@ export default function App() {
     );
   }
 
-  // Auth Gate
-  if (pinEnabled && !isAuthenticated) {
-    return (
-      <PinGate 
-        correctPin={pinCode} 
-        onVerify={handleVerifyPin} 
-      />
-    );
-  }
-
-  // Force quiz on first launch
-  if (!quizDone && !isQuizOpen) {
-    setIsQuizOpen(true);
+  // Auth Gate check
+  if (!session) {
+    return <AuthGate onAuthSuccess={(sess) => setSession(sess)} />;
   }
 
   return (
@@ -272,14 +458,34 @@ export default function App() {
         <header className="px-6 py-4 flex items-center justify-between border-b border-white/5 bg-white/[0.01]">
           <div className="flex items-center gap-2">
             <span className="font-display italic text-2xl text-sea-foam select-none">
-              The Aquarium
+              The AIquarium
             </span>
           </div>
           
           <div className="flex items-center gap-4">
-            <span className="font-mono text-[10px] md:text-xs text-sea-foam/50 uppercase tracking-wider">
+            <span className="font-mono text-[10px] md:text-xs text-sea-foam/50 uppercase tracking-wider hidden sm:inline text-right max-w-[280px] truncate">
               {getLastFedText()}
             </span>
+
+            {/* AI Power Indicator in Header */}
+            <div className="flex items-center gap-1 bg-white/[0.02] border border-white/5 rounded-full px-2.5 py-1 text-xs select-none">
+              <span className="text-[9px] font-mono text-sea-foam/40 uppercase tracking-wider mr-1 hidden sm:inline">AI Power</span>
+              <div className="flex items-center gap-0.5">
+                {Array.from({ length: 5 }).map((_, idx) => (
+                  <div 
+                    key={idx}
+                    className={`w-1.5 h-2.5 rounded-sm transition-all duration-300 ${
+                      idx < energy 
+                        ? 'bg-bioluminescent shadow-[0_0_6px_rgba(0,229,255,0.6)]' 
+                        : 'bg-white/10'
+                    }`}
+                  />
+                ))}
+              </div>
+              <span className="font-mono text-[10px] text-bioluminescent font-semibold ml-1">
+                {energy}/5
+              </span>
+            </div>
             
             <button
               onClick={() => setIsSettingsOpen(true)}
@@ -294,10 +500,15 @@ export default function App() {
         <main className="flex-1 flex items-center justify-center p-0 md:p-6 lg:p-8">
           <div className="w-full max-w-5xl rounded-none md:rounded-2xl border-none md:border border-white/5 shadow-2xl overflow-hidden bg-black/10">
             <AquariumTank
-              quizDone={quizDone}
-              digestState={digestState}
-              onFishClick={quizDone ? () => setIsDigestOpen(true) : () => setIsQuizOpen(true)}
+              tripQuizDone={tripQuizDone}
+              stockQuizDone={stockQuizDone}
+              tripDigestState={tripDigestState}
+              stockDigestState={stockDigestState}
+              tripFishActive={tripFishActive}
+              stockFishActive={stockFishActive}
+              onFishClick={handleFishClick}
               onSettingsClick={() => setIsSettingsOpen(true)}
+              onAddAgent={handleAddAgent}
             />
           </div>
         </main>
@@ -305,12 +516,13 @@ export default function App() {
 
       {/* Dashboard minimal Footer credits */}
       <footer className="py-4 text-center font-mono text-[9px] text-sea-foam/20 z-10">
-        THE AQUARIUM MVP · GEMINI FLASH CURATION · TAVILY SCRAPING
+        THE AIQUARIUM MVP · GEMINI FLASH CURATION · TAVILY SCRAPING
       </footer>
 
       {/* Onboarding Quiz Modal overlay */}
       {isQuizOpen && (
         <OnboardingQuiz 
+          fishSlug={quizSlug}
           onComplete={handleQuizComplete} 
         />
       )}
@@ -321,19 +533,31 @@ export default function App() {
         onClose={() => setIsDigestOpen(false)}
         digests={digests}
         homeCity={homeCity}
+        initialAgent={activeDigestTab}
       />
 
       {/* Slide in Settings panel sidebar */}
       <SettingsPanel
         isOpen={isSettingsOpen}
         onClose={() => setIsSettingsOpen(false)}
-        quizContext={quizContext}
+        quizContext={tripQuizContext}
+        stockQuizContext={stockQuizContext}
         onRetakeQuiz={handleRetakeQuiz}
+        onDigestGenerating={(slug) => {
+          if (slug === 'trip-planner') setTripDigestState('generating');
+          else setStockDigestState('generating');
+        }}
         onDigestGenerated={handleDigestGenerated}
-        pinEnabled={pinEnabled}
-        onTogglePin={handleTogglePin}
-        pinCode={pinCode}
-        onUpdatePin={handleUpdatePinCode}
+        pinEnabled={false}
+        onTogglePin={() => {}}
+        pinCode={""}
+        onUpdatePin={() => {}}
+        energy={energy}
+        secondsToRecharge={secondsToRecharge}
+        tripFishActive={tripFishActive}
+        stockFishActive={stockFishActive}
+        onToggleFishActive={handleToggleFishActive}
+        onLogout={handleLogout}
       />
 
     </div>
