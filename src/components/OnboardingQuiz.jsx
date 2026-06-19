@@ -325,7 +325,9 @@ export default function OnboardingQuiz({ onComplete, fishSlug = 'trip-planner' }
     }
   };
 
-  const isValid = currentQ.type === 'api_keys' ? true : currentQ.validate();
+  const isValid = currentQ.type === 'api_keys' 
+    ? (geminiKey.trim().length > 0 && tavilyKey.trim().length > 0)
+    : currentQ.validate();
 
   return (
     <div className="fixed inset-0 z-40 bg-abyss text-sea-foam flex flex-col justify-between overflow-hidden">
@@ -380,7 +382,7 @@ export default function OnboardingQuiz({ onComplete, fishSlug = 'trip-planner' }
                 {currentQ.type === 'api_keys' && (
                   <div className="space-y-4">
                     <p className="text-xs text-sea-foam/60 leading-relaxed font-sans">
-                      Enter your personal keys to run these AI agents on your own quota. You can leave these fields empty to use system default keys (subject to shared API limits).
+                      Enter your personal keys to run these AI agents on your own quota. Both keys are required to complete onboarding and activate your fish.
                     </p>
                     <div className="space-y-4">
                       <div>

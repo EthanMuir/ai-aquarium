@@ -363,7 +363,7 @@ export default function SettingsPanel({
                         type="password"
                         value={geminiKeyInput}
                         onChange={(e) => setGeminiKeyInput(e.target.value)}
-                        placeholder="Leave empty to use developer defaults"
+                        placeholder="Enter your personal Gemini API key"
                         className="w-full bg-white/[0.03] border border-white/10 rounded px-3 py-1.5 text-xs font-mono focus:outline-none focus:border-bioluminescent text-white"
                       />
                     </div>
@@ -375,7 +375,7 @@ export default function SettingsPanel({
                         type="password"
                         value={tavilyKeyInput}
                         onChange={(e) => setTavilyKeyInput(e.target.value)}
-                        placeholder="Leave empty to use developer defaults"
+                        placeholder="Enter your personal Tavily API key"
                         className="w-full bg-white/[0.03] border border-white/10 rounded px-3 py-1.5 text-xs font-mono focus:outline-none focus:border-bioluminescent text-white"
                       />
                     </div>

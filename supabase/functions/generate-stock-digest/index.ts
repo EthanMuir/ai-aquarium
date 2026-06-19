@@ -74,8 +74,6 @@ serve(async (req) => {
   try {
     const SUPABASE_URL = Deno.env.get('SUPABASE_URL') || '';
     const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
-    const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY') || '';
-    const TAVILY_API_KEY = Deno.env.get('TAVILY_API_KEY') || '';
 
     if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
       return new Response(
@@ -183,7 +181,7 @@ serve(async (req) => {
         .eq('user_id', targetUserId)
         .maybeSingle();
 
-      const activeTavilyKey = userKeys?.tavily_api_key || TAVILY_API_KEY;
+      const activeTavilyKey = userKeys?.tavily_api_key;
       if (!activeTavilyKey) {
         throw new Error('Tavily API key is not configured.');
       }
@@ -258,8 +256,8 @@ serve(async (req) => {
       .eq('user_id', targetUserId)
       .maybeSingle();
 
-    const activeGeminiKey = userKeys?.gemini_api_key || GEMINI_API_KEY;
-    const activeTavilyKey = userKeys?.tavily_api_key || TAVILY_API_KEY;
+    const activeGeminiKey = userKeys?.gemini_api_key;
+    const activeTavilyKey = userKeys?.tavily_api_key;
 
     if (!mock && (!activeGeminiKey || !activeTavilyKey)) {
       throw new Error('API keys are missing. Please configure your API keys first.');
