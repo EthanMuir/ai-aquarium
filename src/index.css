@@ -360,6 +360,63 @@ body {
   animation-duration: 0.12s !important;
 }
 
+/* World News Fish Swim & Glow Animations (De-synchronized path) */
+@keyframes swim-news {
+  0% {
+    transform: translate(0px, 0px) scaleX(-1) rotate(0deg);
+  }
+  12% {
+    transform: translate(12vw, 15px) scaleX(-1) rotate(4deg);
+  }
+  25% {
+    transform: translate(25vw, 30px) scaleX(-1) rotate(0deg);
+  }
+  38% {
+    transform: translate(38vw, 12px) scaleX(-1) rotate(-4deg);
+  }
+  48% {
+    transform: translate(50vw, -10px) scaleX(-1) rotate(0deg);
+  }
+  50% {
+    transform: translate(50vw, -10px) scaleX(1) rotate(0deg);
+  }
+  62% {
+    transform: translate(38vw, 5px) scaleX(1) rotate(4deg);
+  }
+  75% {
+    transform: translate(25vw, 20px) scaleX(1) rotate(0deg);
+  }
+  88% {
+    transform: translate(12vw, 10px) scaleX(1) rotate(-4deg);
+  }
+  98% {
+    transform: translate(0px, 0px) scaleX(1) rotate(0deg);
+  }
+  100% {
+    transform: translate(0px, 0px) scaleX(-1) rotate(0deg);
+  }
+}
+
+.news-fish-container {
+  position: absolute;
+  top: 18%;
+  left: 25%;
+  width: 150px;
+  height: 120px;
+  cursor: pointer;
+  z-index: 10;
+  animation: swim-news 20s ease-in-out infinite;
+  animation-delay: -12s; /* Offset from other fish */
+}
+
+.news-fish-fast {
+  animation-duration: 7s !important;
+}
+
+.news-fish-fast .fish-tail {
+  animation-duration: 0.15s !important;
+}
+
 /* Fish status glows */
 @keyframes glow-default {
   0%, 100% {
@@ -376,6 +433,15 @@ body {
   }
   50% {
     filter: drop-shadow(0 0 16px rgba(30, 136, 229, 0.6));
+  }
+}
+
+@keyframes glow-news-default {
+  0%, 100% {
+    filter: drop-shadow(0 0 10px rgba(0, 230, 115, 0.4));
+  }
+  50% {
+    filter: drop-shadow(0 0 16px rgba(0, 230, 115, 0.6));
   }
 }
 
@@ -397,6 +463,15 @@ body {
   }
 }
 
+@keyframes glow-news-fed {
+  0%, 100% {
+    filter: drop-shadow(0 0 15px rgba(0, 230, 115, 0.7)) drop-shadow(0 0 25px rgba(0, 230, 115, 0.3));
+  }
+  50% {
+    filter: drop-shadow(0 0 25px rgba(0, 230, 115, 0.9)) drop-shadow(0 0 45px rgba(0, 230, 115, 0.5));
+  }
+}
+
 @keyframes glow-failed {
   0%, 100% {
     filter: drop-shadow(0 0 12px rgba(255, 170, 0, 0.5));
@@ -414,12 +489,20 @@ body {
   animation: glow-stock-default 3s ease-in-out infinite;
 }
 
+.fish-glow-news-default {
+  animation: glow-news-default 3s ease-in-out infinite;
+}
+
 .fish-glow-fed {
   animation: glow-fed 2.5s ease-in-out infinite;
 }
 
 .fish-glow-stock-fed {
   animation: glow-stock-fed 2.5s ease-in-out infinite;
+}
+
+.fish-glow-news-fed {
+  animation: glow-news-fed 2.5s ease-in-out infinite;
 }
 
 .fish-glow-failed {
@@ -465,14 +548,14 @@ body {
 }
 
 /* Fish hover zoom and tilt interactions */
-.fish-container, .stock-fish-container {
+.fish-container, .stock-fish-container, .news-fish-container {
   transition: filter 0.35s ease;
 }
-.fish-container:hover svg, .stock-fish-container:hover svg {
+.fish-container:hover svg, .stock-fish-container:hover svg, .news-fish-container:hover svg {
   transform: scale(1.1) rotate(4deg);
   filter: drop-shadow(0 0 20px rgba(0, 229, 255, 0.6));
 }
-.fish-container svg, .stock-fish-container svg {
+.fish-container svg, .stock-fish-container svg, .news-fish-container svg {
   transition: transform 0.4s cubic-bezier(0.25, 0.8, 0.25, 1), filter 0.4s ease;
 }
 

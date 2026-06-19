@@ -14,6 +14,7 @@ export default function App() {
   // Double Quiz status states
   const [tripQuizDone, setTripQuizDone] = useState(false);
   const [stockQuizDone, setStockQuizDone] = useState(false);
+  const [newsQuizDone, setNewsQuizDone] = useState(false);
   
   // Track which quiz to show
   const [quizSlug, setQuizSlug] = useState('trip-planner');
@@ -21,10 +22,12 @@ export default function App() {
   // persistent active status for the two fish
   const [tripFishActive, setTripFishActive] = useState(true);
   const [stockFishActive, setStockFishActive] = useState(true);
+  const [newsFishActive, setNewsFishActive] = useState(true);
 
   // Quiz context key-values for both fish
   const [tripQuizContext, setTripQuizContext] = useState({});
   const [stockQuizContext, setStockQuizContext] = useState({});
+  const [newsQuizContext, setNewsQuizContext] = useState({});
   const [homeCity, setHomeCity] = useState('');
 
   // Digests history (contains both Trip Planner and Stock Lookout digests)
@@ -33,6 +36,7 @@ export default function App() {
   // Digest visual states for both fish
   const [tripDigestState, setTripDigestState] = useState('none'); // 'none' | 'generating' | 'ready' | 'failed'
   const [stockDigestState, setStockDigestState] = useState('none'); // 'none' | 'generating' | 'ready' | 'failed'
+  const [newsDigestState, setNewsDigestState] = useState('none'); // 'none' | 'generating' | 'ready' | 'failed'
 
   // Modal / panel toggles
   const [isQuizOpen, setIsQuizOpen] = useState(false);
@@ -172,9 +176,11 @@ export default function App() {
     } else {
       setTripQuizContext({});
       setStockQuizContext({});
+      setNewsQuizContext({});
       setDigests([]);
       setTripQuizDone(false);
       setStockQuizDone(false);
+      setNewsQuizDone(false);
     }
   }, [session]);
 
@@ -193,6 +199,8 @@ export default function App() {
         if (trip) setTripFishActive(trip.is_active !== false);
         const stock = fishData.find(f => f.slug === 'stock-lookout');
         if (stock) setStockFishActive(stock.is_active !== false);
+        const news = fishData.find(f => f.slug === 'news-briefing');
+        if (news) setNewsFishActive(news.is_active !== false);
       }
     } catch (err) {
       console.error(err);
@@ -212,21 +220,26 @@ export default function App() {
       if (!error && data) {
         const tripMap = {};
         const stockMap = {};
+        const newsMap = {};
         
         data.forEach(row => {
           if (row.fish_slug === 'trip-planner') {
             tripMap[row.context_key] = row.context_value;
           } else if (row.fish_slug === 'stock-lookout') {
             stockMap[row.context_key] = row.context_value;
+          } else if (row.fish_slug === 'news-briefing') {
+            newsMap[row.context_key] = row.context_value;
           }
         });
 
         setTripQuizContext(tripMap);
         setStockQuizContext(stockMap);
+        setNewsQuizContext(newsMap);
         
         // Dynamically set quiz complete status
         setTripQuizDone(Object.keys(tripMap).length > 0);
         setStockQuizDone(Object.keys(stockMap).length > 0);
+        setNewsQuizDone(Object.keys(newsMap).length > 0);
         
         if (tripMap.home_city) {
           setHomeCity(tripMap.home_city);
@@ -246,7 +259,7 @@ export default function App() {
         .from('daily_digests')
         .select('*')
         .eq('user_id', user.id)
-        .in('fish_slug', ['trip-planner', 'stock-lookout'])
+        .in('fish_slug', ['trip-planner', 'stock-lookout', 'news-briefing'])
         .order('digest_date', { ascending: false });
 
       if (!error && data) {
@@ -281,6 +294,21 @@ export default function App() {
         } else {
           setStockDigestState('none');
         }
+
+        // Update World News visual state
+        const newsList = data.filter(d => d.fish_slug === 'news-briefing');
+        if (newsList.length > 0) {
+          const latest = newsList[0];
+          if (latest.generation_status === 'failed') {
+            setNewsDigestState('failed');
+          } else if (latest.generation_status === 'success') {
+            setNewsDigestState('ready');
+          } else {
+            setNewsDigestState('none');
+          }
+        } else {
+          setNewsDigestState('none');
+        }
       }
     } catch (e) {
       console.error(e);
@@ -296,8 +324,10 @@ export default function App() {
   const handleRetakeQuiz = (slug) => {
     if (slug === 'trip-planner') {
       setTripQuizDone(false);
-    } else {
+    } else if (slug === 'stock-lookout') {
       setStockQuizDone(false);
+    } else {
+      setNewsQuizDone(false);
     }
     setQuizSlug(slug);
     setIsSettingsOpen(false);
@@ -311,12 +341,18 @@ export default function App() {
         return;
       }
       setTripDigestState('ready');
-    } else {
+    } else if (slug === 'stock-lookout') {
       if (failed) {
         setStockDigestState('failed');
         return;
       }
       setStockDigestState('ready');
+    } else {
+      if (failed) {
+        setNewsDigestState('failed');
+        return;
+      }
+      setNewsDigestState('ready');
     }
     
     consumeEnergyCharge();
@@ -324,7 +360,11 @@ export default function App() {
   };
 
   const handleToggleFishActive = async (slug) => {
-    const nextVal = slug === 'trip-planner' ? !tripFishActive : !stockFishActive;
+    const nextVal = slug === 'trip-planner' 
+      ? !tripFishActive 
+      : slug === 'stock-lookout' 
+        ? !stockFishActive 
+        : !newsFishActive;
     try {
       const { error } = await supabase
         .from('fish')
@@ -334,8 +374,10 @@ export default function App() {
       if (!error) {
         if (slug === 'trip-planner') {
           setTripFishActive(nextVal);
-        } else {
+        } else if (slug === 'stock-lookout') {
           setStockFishActive(nextVal);
+        } else {
+          setNewsFishActive(nextVal);
         }
       } else {
         console.error("Failed to update fish visibility:", error);
@@ -362,6 +404,14 @@ export default function App() {
         setActiveDigestTab('stock-lookout');
         setIsDigestOpen(true);
       }
+    } else if (slug === 'news-briefing') {
+      if (!newsQuizDone) {
+        setQuizSlug('news-briefing');
+        setIsQuizOpen(true);
+      } else {
+        setActiveDigestTab('news-briefing');
+        setIsDigestOpen(true);
+      }
     }
   };
 
@@ -373,10 +423,10 @@ export default function App() {
 
   // Determine last fed metadata message for header
   const getLastFedText = () => {
-    if (!tripQuizDone && !stockQuizDone) {
+    if (!tripQuizDone && !stockQuizDone && !newsQuizDone) {
       return "Setup profile to begin feeding";
     }
-    if (tripDigestState === 'generating' || stockDigestState === 'generating') {
+    if (tripDigestState === 'generating' || stockDigestState === 'generating' || newsDigestState === 'generating') {
       return "Agent is feeding now...";
     }
     
@@ -399,7 +449,11 @@ export default function App() {
       const timeStr = latest.created_at 
         ? new Date(latest.created_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) 
         : "6:02 AM";
-      const name = latest.fish_slug === 'trip-planner' ? 'Trip Planner' : 'Stock Lookout';
+      
+      let name = 'Trip Planner';
+      if (latest.fish_slug === 'stock-lookout') name = 'Stock Lookout';
+      else if (latest.fish_slug === 'news-briefing') name = 'World News';
+      
       return `Last fed (${name}): Today, ${timeStr}`;
     } else {
       return "Next feed: Tomorrow, 6:00 AM";
@@ -502,10 +556,13 @@ export default function App() {
             <AquariumTank
               tripQuizDone={tripQuizDone}
               stockQuizDone={stockQuizDone}
+              newsQuizDone={newsQuizDone}
               tripDigestState={tripDigestState}
               stockDigestState={stockDigestState}
+              newsDigestState={newsDigestState}
               tripFishActive={tripFishActive}
               stockFishActive={stockFishActive}
+              newsFishActive={newsFishActive}
               onFishClick={handleFishClick}
               onSettingsClick={() => setIsSettingsOpen(true)}
               onAddAgent={handleAddAgent}
@@ -542,10 +599,12 @@ export default function App() {
         onClose={() => setIsSettingsOpen(false)}
         quizContext={tripQuizContext}
         stockQuizContext={stockQuizContext}
+        newsQuizContext={newsQuizContext}
         onRetakeQuiz={handleRetakeQuiz}
         onDigestGenerating={(slug) => {
           if (slug === 'trip-planner') setTripDigestState('generating');
-          else setStockDigestState('generating');
+          else if (slug === 'stock-lookout') setStockDigestState('generating');
+          else setNewsDigestState('generating');
         }}
         onDigestGenerated={handleDigestGenerated}
         pinEnabled={false}
@@ -556,6 +615,7 @@ export default function App() {
         secondsToRecharge={secondsToRecharge}
         tripFishActive={tripFishActive}
         stockFishActive={stockFishActive}
+        newsFishActive={newsFishActive}
         onToggleFishActive={handleToggleFishActive}
         onLogout={handleLogout}
       />

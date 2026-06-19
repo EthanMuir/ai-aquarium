@@ -19,8 +19,13 @@ export default function DigestPanel({ isOpen, onClose, digests, homeCity, initia
   // Filter digests by agent slug
   const tripDigests = (digests || []).filter(d => d.fish_slug === 'trip-planner');
   const stockDigests = (digests || []).filter(d => d.fish_slug === 'stock-lookout');
+  const newsDigests = (digests || []).filter(d => d.fish_slug === 'news-briefing');
 
-  const currentDigests = activeAgent === 'trip-planner' ? tripDigests : stockDigests;
+  const currentDigests = activeAgent === 'trip-planner'
+    ? tripDigests
+    : activeAgent === 'stock-lookout'
+      ? stockDigests
+      : newsDigests;
   const todayDigest = currentDigests.length > 0 ? currentDigests[0] : null;
 
   // Helper to extract clean domain names from URLs
@@ -199,6 +204,107 @@ export default function DigestPanel({ isOpen, onClose, digests, homeCity, initia
     );
   };
 
+  const renderNewsContent = (digest, isHistory = false) => {
+    if (!digest) return null;
+
+    if (digest.generation_status === 'failed') {
+      return (
+        <div className="text-sm text-sea-foam/50 p-6 border border-dashed border-[#00e673]/25 bg-[#00e673]/5 rounded-xl space-y-3">
+          <p className="font-semibold text-[#00e673] flex items-center gap-1.5">
+            <span>⚠️</span> News Curation Failed
+          </p>
+          <p className="text-xs text-sea-foam/70 leading-relaxed">
+            {digest.headline || 'An error occurred during agent curation execution.'}
+          </p>
+          <p className="text-[10px] text-sea-foam/40 font-mono">
+            You can trigger a manual feed inside the AIquarium Settings.
+          </p>
+        </div>
+      );
+    }
+
+    let newsData = null;
+    try {
+      if (!digest.body_markdown) {
+        throw new Error("No digest body content available");
+      }
+      newsData = JSON.parse(digest.body_markdown);
+      if (!newsData || typeof newsData !== 'object') {
+        throw new Error("Invalid news data structure");
+      }
+    } catch (e) {
+      return (
+        <div className="text-sm text-sea-foam/50 p-4 border border-dashed border-white/10 rounded-lg">
+          <p className="font-semibold text-coral-warm">Failed to parse news digest data</p>
+          <p className="text-xs mt-1">{digest.headline || 'An error occurred during parse.'}</p>
+        </div>
+      );
+    }
+
+    const renderReliability = (score) => {
+      const s = score?.toLowerCase();
+      if (s === 'high') return <span className="text-[#00e673]">High Reliability</span>;
+      if (s === 'medium') return <span className="text-amber-400">Medium Reliability</span>;
+      return <span className="text-red-400">Low Reliability / Speculative</span>;
+    };
+
+    return (
+      <div className="space-y-6">
+        {/* News Vibe Card */}
+        <div className="bg-[#021d12]/40 border border-[#00e673]/20 rounded-xl p-4 flex items-center gap-4">
+          <div className="text-3xl shrink-0">{newsData.vibe_emoji || '🌐'}</div>
+          <div>
+            <span className="font-mono text-[9px] uppercase tracking-widest text-[#00e673] font-semibold block">Global News Vibe</span>
+            <p className="text-sm md:text-base text-white/90 font-sans">{digest.headline || newsData.headline}</p>
+          </div>
+        </div>
+
+        {/* Focus Theme */}
+        {!isHistory && (
+          <div className="space-y-1">
+            <span className="font-mono text-[9px] uppercase tracking-widest text-sea-foam/40 font-semibold block">Today's Focus Theme</span>
+            <h2 className="font-display italic text-2xl text-white font-semibold leading-tight">{newsData.todays_theme}</h2>
+          </div>
+        )}
+
+        {/* Stories list */}
+        <div className="space-y-4">
+          {newsData.stories?.map((story, i) => (
+            <div 
+              key={i}
+              className="frosted-glass-light rounded-xl p-5 border border-white/5 hover:border-[#00e673]/30 transition-all duration-300 shadow-xl space-y-3"
+            >
+              <div className="flex items-start justify-between gap-4">
+                <h3 className="text-sm md:text-base font-semibold text-white leading-snug">{story.title}</h3>
+                <span className="px-2 py-0.5 rounded text-[9px] font-mono tracking-wider font-semibold border bg-white/5 border-white/10 text-sea-foam/70">
+                  {story.category || 'General'}
+                </span>
+              </div>
+              <p className="text-xs md:text-sm text-sea-foam/80 leading-relaxed font-sans">{story.summary}</p>
+              
+              <div className="pt-2 border-t border-white/5 grid grid-cols-1 md:grid-cols-2 gap-2 text-[11px]">
+                <div>
+                  <span className="font-mono uppercase text-[#00e673] font-semibold block text-[9px]">The Ripples / Implications</span>
+                  <p className="text-sea-foam/70 leading-normal mt-0.5">{story.implications}</p>
+                </div>
+                <div className="md:text-right md:flex md:flex-col md:justify-end">
+                  <span className="font-mono uppercase text-sea-foam/40 block text-[9px]">Sources Verification</span>
+                  <span className="font-semibold block mt-0.5">{renderReliability(story.reliability_score)}</span>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Disclaimer */}
+        <div className="text-[10px] font-sans text-sea-foam/30 leading-relaxed bg-white/[0.01] border border-white/5 rounded-lg p-3">
+          <span className="font-semibold block text-sea-foam/40 mb-0.5">⚠️ DISCLAIMER</span>
+          {newsData.disclaimer || "AI generated summary from web search indexes. Always verify critical news with primary journalism sources."}
+        </div>
+      </div>
+    );
+  };
+
   return (
     <AnimatePresence>
       {isOpen && (
@@ -226,13 +332,30 @@ export default function DigestPanel({ isOpen, onClose, digests, homeCity, initia
             {/* Panel Header */}
             <div className="px-6 pb-4 flex items-center justify-between border-b border-white/5 shrink-0">
               <div className="flex items-center gap-2">
-                <span className="text-2xl">{activeAgent === 'trip-planner' ? '🐠' : '📈'}</span>
+                <span className="text-2xl">
+                  {activeAgent === 'trip-planner' 
+                    ? '🐠' 
+                    : activeAgent === 'stock-lookout' 
+                      ? '📈' 
+                      : '📰'
+                  }
+                </span>
                 <div>
                   <h3 className="font-display text-lg text-white font-semibold leading-tight">
-                    {activeAgent === 'trip-planner' ? 'Trip Planner' : 'Stock Lookout'}
+                    {activeAgent === 'trip-planner' 
+                      ? 'Trip Planner' 
+                      : activeAgent === 'stock-lookout' 
+                        ? 'Stock Lookout' 
+                        : 'World News'
+                    }
                   </h3>
                   <span className="font-mono text-[10px] text-sea-foam/40 uppercase tracking-wider">
-                    {activeAgent === 'trip-planner' ? 'AI CURATOR' : 'MARKET ANALYST'}
+                    {activeAgent === 'trip-planner' 
+                      ? 'AI CURATOR' 
+                      : activeAgent === 'stock-lookout' 
+                        ? 'MARKET ANALYST' 
+                        : 'GLOBAL ANCHORMAN'
+                    }
                   </span>
                 </div>
               </div>
@@ -240,7 +363,13 @@ export default function DigestPanel({ isOpen, onClose, digests, homeCity, initia
               <div className="flex items-center gap-4">
                 {todayDigest && (
                   <div className="hidden sm:flex items-center gap-1.5 font-mono text-xs text-sea-foam/50 bg-white/[0.02] px-2.5 py-1 rounded border border-white/5">
-                    <Calendar size={13} className={activeAgent === 'trip-planner' ? "text-bioluminescent" : "text-[#42a5f5]"} />
+                    <Calendar size={13} className={
+                      activeAgent === 'trip-planner'
+                        ? "text-bioluminescent"
+                        : activeAgent === 'stock-lookout'
+                          ? "text-[#42a5f5]"
+                          : "text-[#00e673]"
+                    } />
                     {formatDate(todayDigest.digest_date)}
                   </div>
                 )}
@@ -284,6 +413,20 @@ export default function DigestPanel({ isOpen, onClose, digests, homeCity, initia
               >
                 Stock Lookout 📈
               </button>
+              <button
+                onClick={() => {
+                  setActiveAgent('news-briefing');
+                  setActiveTab('today');
+                  setExpandedDigestId(null);
+                }}
+                className={`pb-2 border-b-2 transition-all ${
+                  activeAgent === 'news-briefing'
+                    ? 'border-[#00e673] text-[#00e673] font-bold'
+                    : 'border-transparent text-sea-foam/40 hover:text-sea-foam/70 font-medium'
+                }`}
+              >
+                World News 📰
+              </button>
             </div>
 
             {/* Tab Bar (Today/History) */}
@@ -297,7 +440,9 @@ export default function DigestPanel({ isOpen, onClose, digests, homeCity, initia
                   activeTab === 'today'
                     ? activeAgent === 'trip-planner'
                       ? 'border-bioluminescent text-bioluminescent'
-                      : 'border-[#1e88e5] text-[#42a5f5]'
+                      : activeAgent === 'stock-lookout'
+                        ? 'border-[#1e88e5] text-[#42a5f5]'
+                        : 'border-[#00e673] text-[#00e673]'
                     : 'border-transparent text-sea-foam/40 hover:text-sea-foam/70'
                 }`}
               >
@@ -312,7 +457,9 @@ export default function DigestPanel({ isOpen, onClose, digests, homeCity, initia
                   activeTab === 'history'
                     ? activeAgent === 'trip-planner'
                       ? 'border-bioluminescent text-bioluminescent'
-                      : 'border-[#1e88e5] text-[#42a5f5]'
+                      : activeAgent === 'stock-lookout'
+                        ? 'border-[#1e88e5] text-[#42a5f5]'
+                        : 'border-[#00e673] text-[#00e673]'
                     : 'border-transparent text-sea-foam/40 hover:text-sea-foam/70'
                 }`}
               >
@@ -449,7 +596,7 @@ export default function DigestPanel({ isOpen, onClose, digests, homeCity, initia
                         </div>
                       )}
                     </motion.div>
-                  ) : (
+                  ) : activeAgent === 'stock-lookout' ? (
                     <motion.div 
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
@@ -457,16 +604,28 @@ export default function DigestPanel({ isOpen, onClose, digests, homeCity, initia
                     >
                       {renderStockContent(todayDigest)}
                     </motion.div>
+                  ) : (
+                    <motion.div 
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="max-w-3xl mx-auto space-y-8 pb-12"
+                    >
+                      {renderNewsContent(todayDigest)}
+                    </motion.div>
                   )
                 ) : (
                   /* EMPTY STATE TODAY */
                   <div className="flex flex-col items-center justify-center text-center py-20 max-w-sm mx-auto">
-                    <span className="text-4xl mb-4 opacity-50">{activeAgent === 'trip-planner' ? '🧭' : '📈'}</span>
+                    <span className="text-4xl mb-4 opacity-50">
+                      {activeAgent === 'trip-planner' ? '🧭' : activeAgent === 'stock-lookout' ? '📈' : '📰'}
+                    </span>
                     <h4 className="font-display text-lg text-white mb-2">No Digest Generated Yet</h4>
                     <p className="text-xs text-sea-foam/50 leading-relaxed font-sans">
                       {activeAgent === 'trip-planner'
                         ? "Your AI agent hasn't created today's travel recommendation. Complete onboarding or trigger a manual feed in Settings to feed your fish."
-                        : "Your AI agent hasn't created today's stock research. Complete onboarding or trigger a manual feed in Settings to feed your fish."}
+                        : activeAgent === 'stock-lookout'
+                          ? "Your AI agent hasn't created today's stock research. Complete onboarding or trigger a manual feed in Settings to feed your fish."
+                          : "Your AI agent hasn't created today's news summary. Complete onboarding or trigger a manual feed in Settings to feed your fish."}
                     </p>
                   </div>
                 )
@@ -493,7 +652,9 @@ export default function DigestPanel({ isOpen, onClose, digests, homeCity, initia
                               <span className="text-sm font-semibold text-white">
                                 {activeAgent === 'trip-planner' 
                                   ? `${digest.destination}, ${digest.country}`
-                                  : digest.title || 'Market Outlook'
+                                  : activeAgent === 'stock-lookout'
+                                    ? digest.title || 'Market Outlook'
+                                    : digest.title || 'Global News Summary'
                                 }
                               </span>
                             </div>
@@ -501,7 +662,9 @@ export default function DigestPanel({ isOpen, onClose, digests, homeCity, initia
                               <span className="font-mono text-xs text-bioluminescent">
                                 {activeAgent === 'trip-planner'
                                   ? formatBudget(digest.estimated_budget_low, digest.estimated_budget_high)
-                                  : digest.destination || '⚡' // emoji representing market mood
+                                  : activeAgent === 'stock-lookout'
+                                    ? digest.destination || '⚡' // emoji representing market mood
+                                    : digest.destination || '🌐' // vibe emoji
                                 }
                               </span>
                               <span className="text-xs text-sea-foam/30">
@@ -552,9 +715,13 @@ export default function DigestPanel({ isOpen, onClose, digests, homeCity, initia
                                       <p className="text-xs border-l-2 border-coral-warm bg-coral-warm/5 pl-3 py-1.5 text-white font-medium">{digest.one_action_today}</p>
                                     </div>
                                   </div>
-                                ) : (
+                                ) : activeAgent === 'stock-lookout' ? (
                                   <div className="p-5 space-y-6 text-sm text-sea-foam/80">
                                     {renderStockContent(digest, true)}
+                                  </div>
+                                ) : (
+                                  <div className="p-5 space-y-6 text-sm text-sea-foam/80">
+                                    {renderNewsContent(digest, true)}
                                   </div>
                                 )}
                               </motion.div>
@@ -572,7 +739,9 @@ export default function DigestPanel({ isOpen, onClose, digests, homeCity, initia
                     <p className="text-xs text-sea-foam/50 leading-relaxed font-sans">
                       {activeAgent === 'trip-planner'
                         ? "Your travel history will appear here after your first few days."
-                        : "Your stock research history will appear here after your first few days."}
+                        : activeAgent === 'stock-lookout'
+                          ? "Your stock research history will appear here after your first few days."
+                          : "Your global news history will appear here after your first few days."}
                     </p>
                   </div>
                 )

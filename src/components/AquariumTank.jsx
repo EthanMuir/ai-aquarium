@@ -5,18 +5,23 @@ import { Settings, Info, Loader2, HelpCircle } from 'lucide-react';
 export default function AquariumTank({ 
   tripQuizDone, 
   stockQuizDone,
+  newsQuizDone,
   tripDigestState, // 'none' | 'generating' | 'ready' | 'failed'
   stockDigestState, // 'none' | 'generating' | 'ready' | 'failed'
+  newsDigestState, // 'none' | 'generating' | 'ready' | 'failed'
   tripFishActive = true,
   stockFishActive = true,
+  newsFishActive = true,
   onFishClick, 
   onSettingsClick,
   onAddAgent
 }) {
   const [showTripTooltip, setShowTripTooltip] = useState(false);
   const [showStockTooltip, setShowStockTooltip] = useState(false);
+  const [showNewsTooltip, setShowNewsTooltip] = useState(false);
   const [tripTooltipText, setTripTooltipText] = useState('');
   const [stockTooltipText, setStockTooltipText] = useState('');
+  const [newsTooltipText, setNewsTooltipText] = useState('');
   const [isAddMenuOpen, setIsAddMenuOpen] = useState(false);
 
   // Generate 18 static bubble parameters once to prevent re-renders resetting animations
@@ -93,6 +98,21 @@ export default function AquariumTank({
     }
   }, [stockQuizDone, stockDigestState]);
 
+  // Update news briefing tooltip content based on state
+  useEffect(() => {
+    if (!newsQuizDone) {
+      setNewsTooltipText('Click to configure World News 📰');
+    } else if (newsDigestState === 'generating') {
+      setNewsTooltipText('Translating global briefs...');
+    } else if (newsDigestState === 'ready') {
+      setNewsTooltipText('News briefing ready! Click to view.');
+    } else if (newsDigestState === 'failed') {
+      setNewsTooltipText('Briefing failed. Click to view settings.');
+    } else {
+      setNewsTooltipText('Anchorman active. Click to view history.');
+    }
+  }, [newsQuizDone, newsDigestState]);
+
   // Determine glow class and saturate filter for Trip Planner
   let tripGlowClass = 'fish-glow-default';
   let tripSaturateStyle = {};
@@ -123,6 +143,21 @@ export default function AquariumTank({
     stockGlowClass = 'fish-glow-failed';
   }
 
+  // Determine glow class and saturate filter for World News
+  let newsGlowClass = 'fish-glow-news-default';
+  let newsSaturateStyle = {};
+
+  if (!newsQuizDone) {
+    newsGlowClass = '';
+    newsSaturateStyle = { filter: 'saturate(30%)' };
+  } else if (newsDigestState === 'generating') {
+    newsGlowClass = 'fish-glow-news-default';
+  } else if (newsDigestState === 'ready') {
+    newsGlowClass = 'fish-glow-news-fed';
+  } else if (newsDigestState === 'failed') {
+    newsGlowClass = 'fish-glow-failed';
+  }
+
   return (
     <div className="relative w-full h-[50vh] md:h-[60vh] lg:h-[70vh] bg-gradient-to-b from-[#020810] via-[#050d1a] to-[#0a1628] overflow-hidden border-b border-white/5 select-none">
       
@@ -151,7 +186,7 @@ export default function AquariumTank({
       {/* ---------------------------------------------------- */}
       {/* Add Agent Button & Menu Overlay */}
       {/* ---------------------------------------------------- */}
-      {(!tripQuizDone || !stockQuizDone) && (
+      {(!tripQuizDone || !stockQuizDone || !newsQuizDone) && (
         <div className="absolute top-4 left-4 z-20">
           <button
             onClick={() => setIsAddMenuOpen(!isAddMenuOpen)}
@@ -205,6 +240,23 @@ export default function AquariumTank({
                     </div>
                   </button>
                 )}
+                {!newsQuizDone && (
+                  <button
+                    onClick={() => {
+                      setIsAddMenuOpen(false);
+                      if (onAddAgent) onAddAgent('news-briefing');
+                    }}
+                    className="w-full text-left px-2.5 py-2 rounded-lg hover:bg-white/5 text-xs text-white hover:text-[#00e673] flex items-center justify-between group transition-all"
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="text-base group-hover:animate-bounce">📰</span>
+                      <div>
+                        <span className="font-semibold block text-[11px]">World News Fish</span>
+                        <span className="text-[9px] text-sea-foam/50 font-sans block">Daily global news anchorman</span>
+                      </div>
+                    </div>
+                  </button>
+                )}
               </motion.div>
             )}
           </AnimatePresence>
@@ -212,7 +264,7 @@ export default function AquariumTank({
       )}
 
       {/* If the tank is completely empty of active/configured fish, show a centered tutorial prompt */}
-      {(!tripQuizDone || !tripFishActive) && (!stockQuizDone || !stockFishActive) && (
+      {(!tripQuizDone || !tripFishActive) && (!stockQuizDone || !stockFishActive) && (!newsQuizDone || !newsFishActive) && (
         <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none z-10">
           <motion.div 
             initial={{ opacity: 0, scale: 0.95 }}
@@ -506,6 +558,134 @@ export default function AquariumTank({
                 className="absolute top-[-36px] bg-abyss/90 border border-white/10 px-3 py-1 rounded text-[11px] font-medium text-white shadow-xl pointer-events-none whitespace-nowrap frosted-glass z-40"
               >
                 {stockTooltipText}
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+      </div>
+      )}
+
+      {/* ---------------------------------------------------- */}
+      {/* 3. World News Fish (Moorish Idol) */}
+      {/* ---------------------------------------------------- */}
+      {newsFishActive && newsQuizDone && (
+        <div 
+          id="fish-news-briefing"
+          className={`news-fish-container ${newsDigestState === 'generating' ? 'news-fish-fast' : ''}`}
+          onClick={() => onFishClick('news-briefing')}
+          onMouseEnter={() => setShowNewsTooltip(true)}
+          onMouseLeave={() => setShowNewsTooltip(false)}
+          style={newsSaturateStyle}
+        >
+        <div className="relative w-full h-full flex flex-col items-center">
+          
+          {/* Status Badge */}
+          {newsQuizDone && newsDigestState === 'ready' && (
+            <div className="absolute top-1 right-3 w-3.5 h-3.5 rounded-full bg-[#00e673] border border-white/20 badge-pulse z-30" />
+          )}
+
+          {newsQuizDone && newsDigestState === 'generating' && (
+            <div className="absolute top-1 right-3 w-5 h-5 rounded-full bg-[#00e673]/20 flex items-center justify-center border border-[#00e673]/30 z-30 animate-spin">
+              <Loader2 size={12} className="text-[#00e673]" />
+            </div>
+          )}
+
+          {newsQuizDone && newsDigestState === 'failed' && (
+            <div className="absolute top-1 right-3 w-3.5 h-3.5 rounded-full bg-[#00e673] border border-white/20 flex items-center justify-center z-30">
+              <span className="w-1.5 h-1.5 rounded-full bg-white animate-ping" />
+            </div>
+          )}
+
+          {/* Styled SVG Fish */}
+          <svg 
+            viewBox="0 0 140 120" 
+            width="130" 
+            height="110" 
+            className={`transition-all duration-300 ${newsGlowClass}`}
+          >
+            <defs>
+              <linearGradient id="news-body-grad" x1="0%" y1="0%" x2="100%" y2="80%">
+                <stop offset="0%" stopColor="#00e673" />
+                <stop offset="50%" stopColor="#00b359" />
+                <stop offset="100%" stopColor="#004d26" />
+              </linearGradient>
+              <linearGradient id="news-yellow-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stopColor="#ccff33" />
+                <stop offset="100%" stopColor="#99ff00" />
+              </linearGradient>
+              <linearGradient id="news-stripe-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stopColor="#0a120d" />
+                <stop offset="100%" stopColor="#020503" />
+              </linearGradient>
+              <linearGradient id="news-gloss" x1="0%" y1="0%" x2="0%" y2="100%">
+                <stop offset="0%" stopColor="#ffffff" stopOpacity="0.35" />
+                <stop offset="50%" stopColor="#ffffff" stopOpacity="0.0" />
+                <stop offset="100%" stopColor="#000000" stopOpacity="0.45" />
+              </linearGradient>
+              <clipPath id="news-body-clip">
+                <path d="M 25,60 C 25,32 50,15 80,25 C 96,30 108,42 114,60 C 114,78 96,90 80,95 C 50,105 25,88 25,60 Z" />
+              </clipPath>
+            </defs>
+
+            {/* Moorish Idol Long Long Dorsal Spire */}
+            <g>
+              <path d="M 45,28 Q 15,-10 0,0 Q 25,12 40,25 Z" fill="url(#news-stripe-grad)" stroke="#003311" strokeWidth="1" />
+              <path d="M 45,28 Q 15,-10 0,0" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" />
+            </g>
+
+            {/* Anal Fin */}
+            <g>
+              <path d="M 50,92 Q 35,125 45,120 Q 65,105 75,93 Z" fill="url(#news-yellow-grad)" stroke="#003311" strokeWidth="1" />
+            </g>
+
+            {/* Tail Fin */}
+            <g className="fish-tail">
+              <path d="M 110,60 L 132,35 C 138,45 138,75 132,85 Z" fill="url(#news-yellow-grad)" stroke="#003311" strokeWidth="1.2" />
+              <path d="M 132,35 C 138,45 138,75 132,85" fill="none" stroke="#111" strokeWidth="3" strokeLinecap="round" />
+              <path d="M 110,60 L 132,35 M 110,60 L 132,85" fill="none" stroke="#111" strokeWidth="2.5" />
+            </g>
+
+            {/* Main Body */}
+            <g clipPath="url(#news-body-clip)">
+              <path d="M 10,10 H 130 V 110 H 10 Z" fill="url(#news-body-grad)" />
+              {/* Black vertical stripes for Moorish Idol vibe */}
+              <path d="M 40,10 C 50,30 50,90 40,110 H 55 C 65,90 65,30 55,10 Z" fill="url(#news-stripe-grad)" />
+              <path d="M 85,10 C 95,30 95,90 85,110 H 98 C 108,90 108,30 98,10 Z" fill="url(#news-stripe-grad)" />
+              <path d="M 25,60 C 25,32 50,15 80,25 C 96,30 108,42 114,60 C 114,78 96,90 80,95 C 50,105 25,88 25,60 Z" fill="url(#news-gloss)" />
+            </g>
+
+            {/* Outer outline */}
+            <path d="M 25,60 C 25,32 50,15 80,25 C 96,30 108,42 114,60 C 114,78 96,90 80,95 C 50,105 25,88 25,60 Z" fill="none" stroke="#003311" strokeWidth="1.5" />
+
+            {/* Pectoral Fin */}
+            <g>
+              <path d="M 68,65 Q 82,75 75,85 Q 65,85 62,75 Z" fill="rgba(204, 255, 51, 0.8)" stroke="#669900" strokeWidth="1" />
+            </g>
+
+            {/* Eye */}
+            <g>
+              <circle cx="38" cy="48" r="6" fill="#ccff33" stroke="#111" strokeWidth="0.8" />
+              <circle cx="38" cy="48" r="4" fill="#000" />
+              <circle cx="39" cy="47" r="1" fill="#fff" />
+            </g>
+          </svg>
+
+          {/* Floating Fish Name */}
+          <span className="font-display italic text-xs text-sea-foam/90 tracking-wide mt-1 select-none drop-shadow-[0_2px_4px_rgba(2,8,16,0.8)]">
+            World News
+          </span>
+          
+          {/* Floating Hover Tooltip */}
+          <AnimatePresence>
+            {showNewsTooltip && (
+              <motion.div
+                initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                transition={{ duration: 0.15 }}
+                className="absolute top-[-36px] bg-abyss/90 border border-white/10 px-3 py-1 rounded text-[11px] font-medium text-white shadow-xl pointer-events-none whitespace-nowrap frosted-glass z-40"
+              >
+                {newsTooltipText}
               </motion.div>
             )}
           </AnimatePresence>

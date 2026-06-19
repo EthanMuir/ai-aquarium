@@ -41,3 +41,14 @@ ALTER TABLE user_api_keys ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Users can manage their own api keys" ON user_api_keys;
 CREATE POLICY "Users can manage their own api keys" ON user_api_keys
   FOR ALL TO authenticated USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+
+-- Seed stock lookout fish agent
+INSERT INTO fish (name, slug, emoji, description, color_accent)
+VALUES ('Stock Lookout', 'stock-lookout', '📈', 'Daily market research agent', '#1e88e5')
+ON CONFLICT (slug) DO NOTHING;
+
+-- Seed world news fish agent
+INSERT INTO fish (name, slug, emoji, description, color_accent)
+VALUES ('World News', 'news-briefing', '📰', 'Daily global news anchorman', '#00e673')
+ON CONFLICT (slug) DO NOTHING;
+

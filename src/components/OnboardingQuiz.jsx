@@ -10,6 +10,7 @@ export default function OnboardingQuiz({ onComplete, fishSlug = 'trip-planner' }
   const [tavilyKey, setTavilyKey] = useState('');
   
   const isStock = fishSlug === 'stock-lookout';
+  const isNews = fishSlug === 'news-briefing';
 
   const [answers, setAnswers] = useState(() => {
     if (isStock) {
@@ -24,6 +25,13 @@ export default function OnboardingQuiz({ onComplete, fishSlug = 'trip-planner' }
         excluded_sectors: '',
         tip_preference: 'Stocks trending right now',
         current_holdings: ''
+      };
+    } else if (isNews) {
+      return {
+        news_interests: ['Geopolitics & World Affairs', 'Tech & AI'],
+        geo_focus: 'Global / International',
+        news_tone: 'Objective & concise briefing',
+        excluded_topics: ''
       };
     } else {
       return {
@@ -201,7 +209,7 @@ export default function OnboardingQuiz({ onComplete, fishSlug = 'trip-planner' }
       validate: () => answers.markets !== ''
     },
     {
-      id: 'excluded_sectors',
+      id: 'excluded_topics',
       title: "Any specific sectors or companies to exclude?",
       type: 'text',
       placeholder: "e.g. Oil & Gas, Crypto (or leave blank)",
@@ -211,7 +219,7 @@ export default function OnboardingQuiz({ onComplete, fishSlug = 'trip-planner' }
       id: 'tip_preference',
       title: "What kind of daily recommendations do you want?",
       type: 'buttons',
-      options: ['Stocks trending right now', 'Undervalued hidden gems', 'Solid dividend payers', 'Conservative index ETFs'],
+      options: ['Stocks trending right now', 'Undervalued hidden gems', 'Solid daily dividend payers', 'Conservative index ETFs'],
       validate: () => answers.tip_preference !== ''
     },
     {
@@ -223,7 +231,63 @@ export default function OnboardingQuiz({ onComplete, fishSlug = 'trip-planner' }
     }
   ];
 
-  const questions = isStock ? stockQuestions : tripQuestions;
+  const newsQuestions = [
+    {
+      id: 'api_keys',
+      title: 'Configure Your API Keys',
+      type: 'api_keys',
+      validate: () => true
+    },
+    {
+      id: 'news_interests',
+      title: 'Which topics interest you most?',
+      type: 'chips',
+      options: [
+        'Geopolitics & World Affairs',
+        'Science & Space',
+        'Tech & AI',
+        'Business & Finance',
+        'Environment & Climate',
+        'Medicine & Health',
+        'Culture & Society'
+      ],
+      validate: () => answers.news_interests?.length > 0
+    },
+    {
+      id: 'geo_focus',
+      title: 'What geographical focus do you prefer?',
+      type: 'buttons',
+      options: [
+        'Global / International',
+        'North America',
+        'Europe & UK',
+        'Asia-Pacific',
+        'Middle East & Africa'
+      ],
+      validate: () => answers.geo_focus !== ''
+    },
+    {
+      id: 'news_tone',
+      title: 'How should your anchor fish deliver the news?',
+      type: 'buttons',
+      options: [
+        'Objective & concise briefing',
+        'Deep-dive narrative overview',
+        'Optimistic & solutions-focused',
+        'Analytical & critical breakdown'
+      ],
+      validate: () => answers.news_tone !== ''
+    },
+    {
+      id: 'excluded_topics',
+      title: 'Any topics you want to filter out?',
+      type: 'text',
+      placeholder: 'e.g. sports, celebrity gossip, crime (or leave blank)',
+      validate: () => true
+    }
+  ];
+
+  const questions = isStock ? stockQuestions : isNews ? newsQuestions : tripQuestions;
   const currentQ = questions[step - 1];
   const progressPercent = (step / questions.length) * 100;
 
@@ -339,6 +403,8 @@ export default function OnboardingQuiz({ onComplete, fishSlug = 'trip-planner' }
         <svg width="400" height="400" viewBox="0 0 100 100" fill="currentColor">
           {isStock ? (
             <ellipse cx="50" cy="50" rx="38" ry="28" />
+          ) : isNews ? (
+            <path d="M50,15 C20,35 20,85 50,75 C80,85 80,35 50,15 Z M50,75 C40,90 60,90 50,75 Z" />
           ) : (
             <path d="M10,50 C25,25 65,20 85,45 C90,40 92,35 95,32 C94,44 94,56 95,68 C92,65 90,60 85,55 C65,80 25,75 10,50 Z" />
           )}
@@ -350,7 +416,7 @@ export default function OnboardingQuiz({ onComplete, fishSlug = 'trip-planner' }
         <motion.div
           initial={{ width: 0 }}
           animate={{ width: `${progressPercent}%` }}
-          className={`h-full ${isStock ? 'bg-[#1e88e5] shadow-[0_0_8px_#1e88e5]' : 'bg-bioluminescent shadow-[0_0_8px_#00e5ff]'}`}
+          className={`h-full ${isStock ? 'bg-[#1e88e5] shadow-[0_0_8px_#1e88e5]' : isNews ? 'bg-[#00e673] shadow-[0_0_8px_#00e673]' : 'bg-bioluminescent shadow-[0_0_8px_#00e5ff]'}`}
           transition={{ duration: 0.3 }}
         />
       </div>
@@ -395,7 +461,7 @@ export default function OnboardingQuiz({ onComplete, fishSlug = 'trip-planner' }
                           onChange={(e) => setGeminiKey(e.target.value)}
                           placeholder="e.g. AIzaSy..."
                           className={`w-full bg-white/[0.02] border border-white/5 rounded-xl px-4 py-3 text-sm text-white focus:outline-none transition-all ${
-                            isStock ? 'focus:border-[#1e88e5]/40 focus:bg-[#1e88e5]/5' : 'focus:border-bioluminescent/40 focus:bg-[#00e5ff]/5'
+                            isStock ? 'focus:border-[#1e88e5]/40 focus:bg-[#1e88e5]/5' : isNews ? 'focus:border-[#00e673]/40 focus:bg-[#00e673]/5' : 'focus:border-bioluminescent/40 focus:bg-[#00e5ff]/5'
                           } placeholder-sea-foam/20`}
                         />
                         <a 
@@ -417,7 +483,7 @@ export default function OnboardingQuiz({ onComplete, fishSlug = 'trip-planner' }
                           onChange={(e) => setTavilyKey(e.target.value)}
                           placeholder="e.g. tvly-..."
                           className={`w-full bg-white/[0.02] border border-white/5 rounded-xl px-4 py-3 text-sm text-white focus:outline-none transition-all ${
-                            isStock ? 'focus:border-[#1e88e5]/40 focus:bg-[#1e88e5]/5' : 'focus:border-bioluminescent/40 focus:bg-[#00e5ff]/5'
+                            isStock ? 'focus:border-[#1e88e5]/40 focus:bg-[#1e88e5]/5' : isNews ? 'focus:border-[#00e673]/40 focus:bg-[#00e673]/5' : 'focus:border-bioluminescent/40 focus:bg-[#00e5ff]/5'
                           } placeholder-sea-foam/20`}
                         />
                         <a 
@@ -439,7 +505,7 @@ export default function OnboardingQuiz({ onComplete, fishSlug = 'trip-planner' }
                     value={answers[currentQ.id]}
                     onChange={(e) => setAnswers({ ...answers, [currentQ.id]: e.target.value })}
                     placeholder={currentQ.placeholder}
-                    className={`w-full frosted-glass-light rounded-xl px-4 py-3.5 text-lg text-white focus:outline-none transition-all ${isStock ? 'neon-border-stock focus:neon-border-stock-active' : 'neon-border-blue focus:neon-border-blue-active'} placeholder-sea-foam/25`}
+                    className={`w-full frosted-glass-light rounded-xl px-4 py-3.5 text-lg text-white focus:outline-none transition-all ${isStock ? 'neon-border-stock focus:neon-border-stock-active' : isNews ? 'border-[#00e673]/30 focus:border-[#00e673] focus:shadow-[0_0_15px_rgba(0,230,115,0.15)]' : 'neon-border-blue focus:neon-border-blue-active'} placeholder-sea-foam/25`}
                     autoFocus
                   />
                 )}
@@ -450,7 +516,7 @@ export default function OnboardingQuiz({ onComplete, fishSlug = 'trip-planner' }
                     onChange={(e) => setAnswers({ ...answers, [currentQ.id]: e.target.value })}
                     placeholder={currentQ.placeholder}
                     rows={4}
-                    className={`w-full frosted-glass-light rounded-xl px-4 py-3.5 text-base text-white focus:outline-none transition-all resize-none ${isStock ? 'neon-border-stock focus:neon-border-stock-active' : 'neon-border-blue focus:neon-border-blue-active'} placeholder-sea-foam/25`}
+                    className={`w-full frosted-glass-light rounded-xl px-4 py-3.5 text-base text-white focus:outline-none transition-all resize-none ${isStock ? 'neon-border-stock focus:neon-border-stock-active' : isNews ? 'border-[#00e673]/30 focus:border-[#00e673] focus:shadow-[0_0_15px_rgba(0,230,115,0.15)]' : 'neon-border-blue focus:neon-border-blue-active'} placeholder-sea-foam/25`}
                     autoFocus
                   />
                 )}
@@ -465,7 +531,9 @@ export default function OnboardingQuiz({ onComplete, fishSlug = 'trip-planner' }
                           answers[currentQ.id] === option
                             ? isStock
                               ? 'frosted-glass-light neon-border-stock-active text-white shadow-[0_0_15px_rgba(30,136,229,0.15)]'
-                              : 'frosted-glass-light neon-border-blue-active text-white shadow-[0_0_15px_rgba(0,229,255,0.15)]'
+                              : isNews
+                                ? 'frosted-glass-light border-[#00e673] text-white shadow-[0_0_15px_rgba(0,230,115,0.15)]'
+                                : 'frosted-glass-light neon-border-blue-active text-white shadow-[0_0_15px_rgba(0,229,255,0.15)]'
                             : 'frosted-glass-light text-sea-foam/70 hover:text-white border border-white/5 hover:border-white/20'
                         }`}
                       >
@@ -487,7 +555,9 @@ export default function OnboardingQuiz({ onComplete, fishSlug = 'trip-planner' }
                             selected
                               ? isStock
                                 ? 'frosted-glass-light neon-border-stock-active text-white shadow-[0_0_10px_rgba(30,136,229,0.15)]'
-                                : 'frosted-glass-light neon-border-blue-active text-white shadow-[0_0_10px_rgba(0,229,255,0.15)]'
+                                : isNews
+                                  ? 'frosted-glass-light border-[#00e673] text-white shadow-[0_0_10px_rgba(0,230,115,0.15)]'
+                                  : 'frosted-glass-light neon-border-blue-active text-white shadow-[0_0_10px_rgba(0,229,255,0.15)]'
                               : 'frosted-glass-light text-sea-foam/70 hover:text-white border border-white/5 hover:border-white/20'
                           }`}
                         >
@@ -510,7 +580,9 @@ export default function OnboardingQuiz({ onComplete, fishSlug = 'trip-planner' }
                             selected
                               ? isStock
                                 ? 'frosted-glass-light neon-border-stock-active text-white shadow-[0_0_10px_rgba(30,136,229,0.15)]'
-                                : 'frosted-glass-light neon-border-blue-active text-white shadow-[0_0_10px_rgba(0,229,255,0.15)]'
+                                : isNews
+                                  ? 'frosted-glass-light border-[#00e673] text-white shadow-[0_0_10px_rgba(0,230,115,0.15)]'
+                                  : 'frosted-glass-light neon-border-blue-active text-white shadow-[0_0_10px_rgba(0,229,255,0.15)]'
                               : 'frosted-glass-light text-sea-foam/70 hover:text-white border border-white/5 hover:border-white/20'
                           }`}
                         >
@@ -620,17 +692,25 @@ export default function OnboardingQuiz({ onComplete, fishSlug = 'trip-planner' }
                 transition={{ delay: 0.6 }}
                 className="flex flex-col items-center"
               >
-                <div className={`w-16 h-16 rounded-full ${isStock ? 'bg-[#1e88e5]/10 text-[#42a5f5] border-[#1e88e5]/20 shadow-[0_0_20px_rgba(30,136,229,0.15)]' : 'bg-bioluminescent/10 text-bioluminescent border-bioluminescent/20 shadow-[0_0_20px_rgba(0,229,255,0.15)]'} flex items-center justify-center mb-6`}>
-                  <Award size={32} />
-                </div>
-                <h2 className="font-display italic text-3xl text-white mb-3">
-                  Your Fish is Ready!
-                </h2>
-                <p className="text-sea-foam/70 max-w-sm text-sm font-sans leading-relaxed">
-                  {isStock
-                    ? "The stock market lookout has updated. Your first personalized market digest will arrive tomorrow morning."
-                    : "The AIquarium ecosystem has adapted to your profile. Your first travel digest will arrive tomorrow morning."}
-                </p>
+                 <div className={`w-16 h-16 rounded-full ${
+                   isStock 
+                     ? 'bg-[#1e88e5]/10 text-[#42a5f5] border-[#1e88e5]/20 shadow-[0_0_20px_rgba(30,136,229,0.15)]' 
+                     : isNews
+                       ? 'bg-[#00e673]/10 text-[#00e673] border-[#00e673]/20 shadow-[0_0_20px_rgba(0,230,115,0.15)]'
+                       : 'bg-bioluminescent/10 text-bioluminescent border-bioluminescent/20 shadow-[0_0_20px_rgba(0,229,255,0.15)]'
+                 } flex items-center justify-center mb-6`}>
+                   <Award size={32} />
+                 </div>
+                 <h2 className="font-display italic text-3xl text-white mb-3">
+                   Your Fish is Ready!
+                 </h2>
+                 <p className="text-sea-foam/70 max-w-sm text-sm font-sans leading-relaxed">
+                   {isStock
+                     ? "The stock market lookout has updated. Your first personalized market digest will arrive tomorrow morning."
+                     : isNews
+                       ? "The World News briefing has adapted to your profile. Your first personalized news briefing will arrive tomorrow morning."
+                       : "The AIquarium ecosystem has adapted to your profile. Your first travel digest will arrive tomorrow morning."}
+                 </p>
               </motion.div>
             </motion.div>
           )}
@@ -661,7 +741,9 @@ export default function OnboardingQuiz({ onComplete, fishSlug = 'trip-planner' }
               isValid && !loading
                 ? isStock
                   ? 'bg-[#1e88e5] text-white shadow-[0_0_15px_rgba(30,136,229,0.25)] hover:shadow-[0_0_20px_rgba(30,136,229,0.4)] active:scale-95'
-                  : 'bg-coral-warm text-white shadow-[0_0_15px_rgba(255,107,71,0.25)] hover:shadow-[0_0_20px_rgba(255,107,71,0.4)] active:scale-95'
+                  : isNews
+                    ? 'bg-[#00e673] text-black shadow-[0_0_15px_rgba(0,230,115,0.25)] hover:shadow-[0_0_20px_rgba(0,230,115,0.4)] active:scale-95'
+                    : 'bg-coral-warm text-white shadow-[0_0_15px_rgba(255,107,71,0.25)] hover:shadow-[0_0_20px_rgba(255,107,71,0.4)] active:scale-95'
                 : 'bg-white/5 border border-white/5 text-sea-foam/30 cursor-not-allowed'
             }`}
           >

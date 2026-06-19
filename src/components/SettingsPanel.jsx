@@ -8,6 +8,7 @@ export default function SettingsPanel({
   onClose, 
   quizContext, // trip planner
   stockQuizContext, // stock lookout
+  newsQuizContext, // world news
   onRetakeQuiz, 
   onDigestGenerating,
   onDigestGenerated,
@@ -19,6 +20,7 @@ export default function SettingsPanel({
   secondsToRecharge = 0,
   tripFishActive = true,
   stockFishActive = true,
+  newsFishActive = true,
   onToggleFishActive,
   onLogout
 }) {
@@ -29,6 +31,7 @@ export default function SettingsPanel({
 
   const [loadingTrip, setLoadingTrip] = useState(false);
   const [loadingStock, setLoadingStock] = useState(false);
+  const [loadingNews, setLoadingNews] = useState(false);
 
   const [tavilyUsage, setTavilyUsage] = useState(null);
   const [loadingUsage, setLoadingUsage] = useState(false);
@@ -175,6 +178,41 @@ export default function SettingsPanel({
       }
     } finally {
       setLoadingStock(false);
+    }
+  };
+
+  const handleNewsManualTrigger = async () => {
+    setLoadingNews(true);
+    if (onDigestGenerating) {
+      onDigestGenerating('news-briefing');
+    }
+    setStatusMessage({ type: 'info', text: 'World News: Scraping global news & calling Gemini...' });
+    try {
+      const { data, error } = await supabase.functions.invoke('generate-news-digest', {
+        method: 'POST',
+        body: { force: true }
+      });
+
+      if (error) {
+        throw new Error(error.message || 'Function invocation failed');
+      }
+
+      setStatusMessage({ type: 'success', text: 'World News digest generated successfully!' });
+      
+      if (onDigestGenerated) {
+        onDigestGenerated('news-briefing');
+      }
+    } catch (err) {
+      console.error('World News manual generation failed:', err);
+      setStatusMessage({ 
+        type: 'error', 
+        text: `World News: ${err.message || 'Generation failed.'}` 
+      });
+      if (onDigestGenerated) {
+        onDigestGenerated('news-briefing', true); // failed
+      }
+    } finally {
+      setLoadingNews(false);
     }
   };
 
@@ -435,6 +473,25 @@ export default function SettingsPanel({
                       />
                     </button>
                   </div>
+
+                  {/* World News Row */}
+                  <div className="flex items-center justify-between bg-white/[0.01] border border-white/5 p-3 rounded-lg hover:border-[#00e673]/20 transition-all duration-200">
+                    <div className="flex items-center gap-2.5">
+                      <span className="text-lg">📰</span>
+                      <div>
+                        <span className="text-xs font-semibold text-white block">World News Fish</span>
+                        <span className="text-[9px] font-mono text-[#00e673]/70 uppercase">Moorish Idol</span>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => onToggleFishActive('news-briefing')}
+                      className={`premium-switch-track ${newsFishActive ? 'bg-[#00e673]/25 border-[#00e673]/40' : 'bg-white/5 border-white/10'}`}
+                    >
+                      <div 
+                        className={`premium-switch-handle ${newsFishActive ? 'translate-x-5 bg-[#00e673] shadow-[0_0_8px_#00e673]' : 'translate-x-0 bg-white/40'}`} 
+                      />
+                    </button>
+                  </div>
                 </div>
               </div>
 
@@ -544,6 +601,61 @@ export default function SettingsPanel({
                   </div>
                   <div className="bg-white/[0.01] border border-white/5 rounded-xl p-3.5 overflow-x-auto max-h-[220px]">
                     {renderPreferencesTable(stockQuizContext)}
+                  </div>
+                </div>
+              </div>
+
+              {/* SECTION 3: WORLD NEWS FISH OPERATIONS */}
+              <div className="space-y-4 pt-6 border-t border-white/5">
+                <h4 className="font-mono text-[10px] uppercase tracking-wider text-[#00e673] font-bold flex items-center gap-1.5">
+                  <span>📰</span> World News Fish
+                </h4>
+                
+                <div className="bg-white/[0.02] border border-white/5 rounded-xl p-4 space-y-4">
+                  <div className="space-y-1">
+                    <p className="text-xs text-sea-foam/70 leading-relaxed">
+                      Force compiling world news briefing. Tavily runs searches against global news indexes for today's date, generating story cards and summaries via Gemini.
+                    </p>
+                  </div>
+                  
+                  <button
+                    onClick={handleNewsManualTrigger}
+                    disabled={loadingTrip || loadingStock || loadingNews || energy === 0}
+                    className="w-full py-2.5 rounded-lg bg-[#00e673] text-black font-semibold text-sm flex items-center justify-center gap-1.5 hover:shadow-[0_0_15px_rgba(0,230,115,0.4)] active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {loadingNews ? (
+                      <>
+                        <Loader2 size={16} className="animate-spin" />
+                        Generating News Digest...
+                      </>
+                    ) : energy === 0 ? (
+                      <>
+                        <AlertTriangle size={16} className="text-amber-500 animate-pulse" />
+                        Out of Energy. Recharging...
+                      </>
+                    ) : (
+                      <>
+                        <Play size={16} fill="black" />
+                        Manual Feed (News)
+                      </>
+                    )}
+                  </button>
+                </div>
+
+                {/* News preferences */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="font-mono text-[9px] uppercase tracking-wider text-sea-foam/40">News Preferences</span>
+                    <button
+                      onClick={() => onRetakeQuiz('news-briefing')}
+                      className="text-[11px] text-[#00e673] hover:underline flex items-center gap-1 font-mono"
+                    >
+                      <RefreshCw size={10} />
+                      Retake Quiz
+                    </button>
+                  </div>
+                  <div className="bg-white/[0.01] border border-white/5 rounded-xl p-3.5 overflow-x-auto max-h-[220px]">
+                    {renderPreferencesTable(newsQuizContext)}
                   </div>
                 </div>
               </div>
