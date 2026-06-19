@@ -35,7 +35,7 @@ async function callGeminiFlash(prompt: string, apiKey: string, responseJson = fa
   }
 
   const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
     {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -421,7 +421,7 @@ Respond ONLY in valid JSON. No markdown, no preamble, no explanation. Exactly th
       hidden_gem: parsedData.hidden_gem,
       one_action_today: parsedData.one_action_today,
       research_sources: uniqueSources,
-      model_used: mock ? 'mock-model' : 'gemini-1.5-flash',
+      model_used: mock ? 'mock-model' : 'gemini-2.5-flash',
       generation_status: 'success'
     };
 

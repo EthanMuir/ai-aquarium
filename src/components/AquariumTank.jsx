@@ -596,11 +596,11 @@ export default function AquariumTank({
             </div>
           )}
 
-          {/* Styled SVG Fish */}
+          {/* Styled SVG Fish (Angelfish) */}
           <svg 
-            viewBox="0 0 140 120" 
+            viewBox="0 0 140 150" 
             width="130" 
-            height="110" 
+            height="140" 
             className={`transition-all duration-300 ${newsGlowClass}`}
           >
             <defs>
@@ -623,50 +623,57 @@ export default function AquariumTank({
                 <stop offset="100%" stopColor="#000000" stopOpacity="0.45" />
               </linearGradient>
               <clipPath id="news-body-clip">
-                <path d="M 25,60 C 25,32 50,15 80,25 C 96,30 108,42 114,60 C 114,78 96,90 80,95 C 50,105 25,88 25,60 Z" />
+                <path d="M 30,60 C 30,35 55,20 80,32 C 92,38 102,48 106,60 C 102,72 92,82 80,88 C 55,100 30,85 30,60 Z" />
               </clipPath>
             </defs>
 
-            {/* Moorish Idol Long Long Dorsal Spire */}
+            {/* Angelfish Long Dorsal Fin */}
             <g>
-              <path d="M 45,28 Q 15,-10 0,0 Q 25,12 40,25 Z" fill="url(#news-stripe-grad)" stroke="#003311" strokeWidth="1" />
-              <path d="M 45,28 Q 15,-10 0,0" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" />
+              <path d="M 65,33 Q 40,-15 25,-22 Q 55,10 85,34 Z" fill="url(#news-yellow-grad)" stroke="#003311" strokeWidth="1.2" />
+              <path d="M 65,33 Q 40,-15 25,-22" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" />
             </g>
 
-            {/* Anal Fin */}
+            {/* Angelfish Long Anal Fin */}
             <g>
-              <path d="M 50,92 Q 35,125 45,120 Q 65,105 75,93 Z" fill="url(#news-yellow-grad)" stroke="#003311" strokeWidth="1" />
+              <path d="M 65,87 Q 40,135 25,142 Q 55,110 85,86 Z" fill="url(#news-yellow-grad)" stroke="#003311" strokeWidth="1.2" />
+              <path d="M 65,87 Q 40,135 25,142" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" />
+            </g>
+
+            {/* Pelvic Fin Feelers (Trailing threads) */}
+            <g>
+              <path d="M 52,82 Q 38,125 24,146" fill="none" stroke="#ccff33" strokeWidth="2.2" strokeLinecap="round" />
+              <path d="M 52,82 Q 38,125 24,146" fill="none" stroke="#00e673" strokeWidth="1" strokeLinecap="round" />
             </g>
 
             {/* Tail Fin */}
             <g className="fish-tail">
-              <path d="M 110,60 L 132,35 C 138,45 138,75 132,85 Z" fill="url(#news-yellow-grad)" stroke="#003311" strokeWidth="1.2" />
-              <path d="M 132,35 C 138,45 138,75 132,85" fill="none" stroke="#111" strokeWidth="3" strokeLinecap="round" />
-              <path d="M 110,60 L 132,35 M 110,60 L 132,85" fill="none" stroke="#111" strokeWidth="2.5" />
+              <path d="M 106,60 L 126,38 C 132,45 132,75 126,82 Z" fill="url(#news-yellow-grad)" stroke="#003311" strokeWidth="1.2" />
+              <path d="M 126,38 C 132,45 132,75 126,82" fill="none" stroke="#111" strokeWidth="2.5" strokeLinecap="round" />
+              <path d="M 106,60 L 126,38 M 106,60 L 126,82" fill="none" stroke="#111" strokeWidth="2" />
             </g>
 
             {/* Main Body */}
             <g clipPath="url(#news-body-clip)">
               <path d="M 10,10 H 130 V 110 H 10 Z" fill="url(#news-body-grad)" />
-              {/* Black vertical stripes for Moorish Idol vibe */}
-              <path d="M 40,10 C 50,30 50,90 40,110 H 55 C 65,90 65,30 55,10 Z" fill="url(#news-stripe-grad)" />
-              <path d="M 85,10 C 95,30 95,90 85,110 H 98 C 108,90 108,30 98,10 Z" fill="url(#news-stripe-grad)" />
-              <path d="M 25,60 C 25,32 50,15 80,25 C 96,30 108,42 114,60 C 114,78 96,90 80,95 C 50,105 25,88 25,60 Z" fill="url(#news-gloss)" />
+              {/* Elegant stripes */}
+              <path d="M 46,10 C 56,30 56,90 46,110 H 60 C 70,90 70,30 60,10 Z" fill="url(#news-stripe-grad)" />
+              <path d="M 82,10 C 92,30 92,90 82,110 H 94 C 104,90 104,30 94,10 Z" fill="url(#news-stripe-grad)" />
+              <path d="M 30,60 C 30,35 55,20 80,32 C 92,38 102,48 106,60 C 102,72 92,82 80,88 C 55,100 30,85 30,60 Z" fill="url(#news-gloss)" />
             </g>
 
             {/* Outer outline */}
-            <path d="M 25,60 C 25,32 50,15 80,25 C 96,30 108,42 114,60 C 114,78 96,90 80,95 C 50,105 25,88 25,60 Z" fill="none" stroke="#003311" strokeWidth="1.5" />
+            <path d="M 30,60 C 30,35 55,20 80,32 C 92,38 102,48 106,60 C 102,72 92,82 80,88 C 55,100 30,85 30,60 Z" fill="none" stroke="#003311" strokeWidth="1.5" />
 
             {/* Pectoral Fin */}
             <g>
-              <path d="M 68,65 Q 82,75 75,85 Q 65,85 62,75 Z" fill="rgba(204, 255, 51, 0.8)" stroke="#669900" strokeWidth="1" />
+              <path d="M 72,66 Q 84,74 78,82 Q 70,82 68,74 Z" fill="rgba(204, 255, 51, 0.75)" stroke="#669900" strokeWidth="1" />
             </g>
 
             {/* Eye */}
             <g>
-              <circle cx="38" cy="48" r="6" fill="#ccff33" stroke="#111" strokeWidth="0.8" />
-              <circle cx="38" cy="48" r="4" fill="#000" />
-              <circle cx="39" cy="47" r="1" fill="#fff" />
+              <circle cx="42" cy="48" r="5.5" fill="#ccff33" stroke="#111" strokeWidth="0.8" />
+              <circle cx="42" cy="48" r="3.5" fill="#000" />
+              <circle cx="43" cy="47" r="0.9" fill="#fff" />
             </g>
           </svg>
 

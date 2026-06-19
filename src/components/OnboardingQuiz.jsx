@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronRight, ChevronLeft, Award } from 'lucide-react';
+import { ChevronRight, ChevronLeft, Award, Loader2 } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 
 export default function OnboardingQuiz({ onComplete, fishSlug = 'trip-planner' }) {
@@ -8,6 +8,7 @@ export default function OnboardingQuiz({ onComplete, fishSlug = 'trip-planner' }
   const [celebrate, setCelebrate] = useState(false);
   const [geminiKey, setGeminiKey] = useState('');
   const [tavilyKey, setTavilyKey] = useState('');
+  const [keysLoaded, setKeysLoaded] = useState(false);
   
   const isStock = fishSlug === 'stock-lookout';
   const isNews = fishSlug === 'news-briefing';
@@ -53,17 +54,23 @@ export default function OnboardingQuiz({ onComplete, fishSlug = 'trip-planner' }
   // Load existing API keys from DB on mount
   useEffect(() => {
     async function loadApiKeys() {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        const { data } = await supabase
-          .from('user_api_keys')
-          .select('*')
-          .eq('user_id', user.id)
-          .maybeSingle();
-        if (data) {
-          setGeminiKey(data.gemini_api_key || '');
-          setTavilyKey(data.tavily_api_key || '');
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          const { data } = await supabase
+            .from('user_api_keys')
+            .select('*')
+            .eq('user_id', user.id)
+            .maybeSingle();
+          if (data) {
+            setGeminiKey(data.gemini_api_key || '');
+            setTavilyKey(data.tavily_api_key || '');
+          }
         }
+      } catch (err) {
+        console.error("Failed to load API keys:", err);
+      } finally {
+        setKeysLoaded(true);
       }
     }
     loadApiKeys();
@@ -287,9 +294,15 @@ export default function OnboardingQuiz({ onComplete, fishSlug = 'trip-planner' }
     }
   ];
 
-  const questions = isStock ? stockQuestions : isNews ? newsQuestions : tripQuestions;
+  const questions = React.useMemo(() => {
+    const base = isStock ? stockQuestions : isNews ? newsQuestions : tripQuestions;
+    if (keysLoaded && geminiKey && tavilyKey) {
+      return base.filter(q => q.id !== 'api_keys');
+    }
+    return base;
+  }, [isStock, isNews, keysLoaded, geminiKey, tavilyKey]);
   const currentQ = questions[step - 1];
-  const progressPercent = (step / questions.length) * 100;
+  const progressPercent = questions.length > 0 ? (step / questions.length) * 100 : 0;
 
   const handleNext = () => {
     if (step < questions.length) {
@@ -389,9 +402,18 @@ export default function OnboardingQuiz({ onComplete, fishSlug = 'trip-planner' }
     }
   };
 
-  const isValid = currentQ.type === 'api_keys' 
+  const isValid = currentQ && currentQ.type === 'api_keys' 
     ? (geminiKey.trim().length > 0 && tavilyKey.trim().length > 0)
-    : currentQ.validate();
+    : currentQ ? currentQ.validate() : false;
+
+  if (!keysLoaded) {
+    return (
+      <div className="fixed inset-0 z-40 bg-abyss text-sea-foam flex flex-col items-center justify-center">
+        <Loader2 size={32} className="text-[#00e5ff] animate-spin" />
+        <span className="text-xs font-mono text-sea-foam/40 mt-3">Loading keys...</span>
+      </div>
+    );
+  }
 
   return (
     <div className="fixed inset-0 z-40 bg-abyss text-sea-foam flex flex-col justify-between overflow-hidden">
@@ -616,71 +638,156 @@ export default function OnboardingQuiz({ onComplete, fishSlug = 'trip-planner' }
                   className="w-[120px] h-[100px] absolute"
                 >
                   {isStock ? (
-                    <svg viewBox="0 0 120 100" width="100%" height="100%">
+                    <svg viewBox="0 0 140 100" width="100%" height="100%">
                       <defs>
-                        <linearGradient id="celeb-stock-grad" x1="0%" y1="0%" x2="100%" y2="0%">
-                          <stop offset="0%" stopColor="#1565c0" />
-                          <stop offset="40%" stopColor="#1e88e5" />
-                          <stop offset="100%" stopColor="#42a5f5" />
+                        <linearGradient id="tang-body-grad" x1="0%" y1="0%" x2="100%" y2="80%">
+                          <stop offset="0%" stopColor="#0052cc" />
+                          <stop offset="35%" stopColor="#0a5cff" />
+                          <stop offset="70%" stopColor="#002288" />
+                          <stop offset="100%" stopColor="#000d33" />
                         </linearGradient>
-                        <linearGradient id="celeb-stock-fin-grad" x1="0%" y1="0%" x2="100%" y2="100%">
-                          <stop offset="0%" stopColor="#1565c0" />
-                          <stop offset="100%" stopColor="#0d47a1" />
+                        <linearGradient id="tang-yellow-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+                          <stop offset="0%" stopColor="#ffea00" />
+                          <stop offset="80%" stopColor="#ffa600" />
+                          <stop offset="100%" stopColor="#ff7b00" />
                         </linearGradient>
-                        <linearGradient id="celeb-stock-tail-grad" x1="0%" y1="0%" x2="100%" y2="0%">
-                          <stop offset="0%" stopColor="#fdd835" />
-                          <stop offset="100%" stopColor="#f9a825" />
+                        <linearGradient id="tang-black-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+                          <stop offset="0%" stopColor="#111a2e" />
+                          <stop offset="100%" stopColor="#05070d" />
                         </linearGradient>
-                        <clipPath id="celeb-stock-clip">
-                          <ellipse cx="60" cy="50" rx="35" ry="28" />
+                        <linearGradient id="tang-gloss" x1="0%" y1="0%" x2="0%" y2="100%">
+                          <stop offset="0%" stopColor="#ffffff" stopOpacity="0.35" />
+                          <stop offset="50%" stopColor="#ffffff" stopOpacity="0.0" />
+                          <stop offset="100%" stopColor="#000000" stopOpacity="0.45" />
+                        </linearGradient>
+                        <clipPath id="tang-body-clip">
+                          <path d="M 22,50 C 26,22 56,15 88,20 C 104,23 112,32 118,44 C 122,48 122,52 118,56 C 112,68 104,77 88,80 C 56,85 26,78 22,50 Z" />
                         </clipPath>
                       </defs>
-                      <path d="M38,25 C42,8 60,6 72,18 C72,22 65,24 38,25 Z" fill="url(#celeb-stock-fin-grad)" opacity="0.9" />
-                      <path d="M40,75 C45,88 62,90 72,80 C65,78 50,77 40,75 Z" fill="url(#celeb-stock-fin-grad)" opacity="0.8" />
-                      <path d="M72,52 C78,58 82,62 76,66 C72,62 70,56 72,52 Z" fill="#fdd835" opacity="0.7" />
-                      <path d="M22,50 C14,35 10,24 20,30 C24,40 24,44 22,50 Z" fill="url(#celeb-stock-tail-grad)" opacity="0.9" />
-                      <path d="M22,50 C14,65 10,76 20,70 C24,60 24,56 22,50 Z" fill="url(#celeb-stock-tail-grad)" opacity="0.9" />
-                      <g clipPath="url(#celeb-stock-clip)">
-                        <ellipse cx="60" cy="50" rx="35" ry="28" fill="url(#celeb-stock-grad)" />
-                        <path d="M80,38 C72,36 55,38 42,45 C35,50 30,58 28,68 L32,72 C35,62 40,54 48,48 C58,42 72,40 82,42 Z" fill="#0a1628" opacity="0.85" />
-                        <ellipse cx="62" cy="38" rx="18" ry="8" fill="#64b5f6" opacity="0.3" />
+                      <g>
+                        <path d="M 42,22 C 55,2 88,4 112,18 C 114,19 110,24 104,22 C 86,18 64,18 42,22 Z" fill="url(#tang-body-grad)" stroke="#001a66" strokeWidth="1.2" />
+                        <path d="M 44,20 C 56,4 88,6 110,19" fill="none" stroke="#00e5ff" strokeWidth="1.8" strokeLinecap="round" opacity="0.85" />
+                        <path d="M 42,22 C 55,2 88,4 112,18" fill="none" stroke="#05070d" strokeWidth="2.5" />
                       </g>
-                      <ellipse cx="60" cy="50" rx="35" ry="28" fill="none" stroke="#0d47a1" strokeWidth="1.5" />
-                      <path d="M26,46 L22,50 L26,54" stroke="#fdd835" strokeWidth="2" fill="none" strokeLinecap="round" />
-                      <circle cx="80" cy="44" r="5" fill="white" />
-                      <circle cx="81.5" cy="43.5" r="2.5" fill="#020810" />
-                      <circle cx="80.5" cy="42.5" r="0.9" fill="white" />
+                      <g>
+                        <path d="M 44,78 C 56,98 88,96 112,82 C 114,81 110,76 104,78 C 86,82 64,82 44,78 Z" fill="url(#tang-body-grad)" stroke="#001a66" strokeWidth="1.2" />
+                        <path d="M 46,80 C 57,96 88,94 110,81" fill="none" stroke="#00e5ff" strokeWidth="1.8" strokeLinecap="round" opacity="0.85" />
+                        <path d="M 44,78 C 56,98 88,96 112,82" fill="none" stroke="#05070d" strokeWidth="2.5" />
+                      </g>
+                      <g>
+                        <path d="M 112,50 L 136,22 C 144,35 144,65 136,78 Z" fill="url(#tang-yellow-grad)" stroke="#cc8800" strokeWidth="1.2" />
+                        <path d="M 136,22 C 144,35 144,65 136,78" fill="none" stroke="#05070d" strokeWidth="3" strokeLinecap="round" />
+                        <path d="M 112,50 L 136,22 M 112,50 L 136,78" fill="none" stroke="#05070d" strokeWidth="3" />
+                      </g>
+                      <g clipPath="url(#tang-body-clip)">
+                        <path d="M 10,10 H 130 V 90 H 10 Z" fill="url(#tang-body-grad)" />
+                        <path d="M 118,46 C 104,40 92,42 78,48 C 66,54 52,55 36,46 C 30,42 26,44 24,54 C 22,66 26,76 34,76 C 46,76 56,66 66,58 C 76,50 90,48 106,53 C 112,55 116,52 118,46 Z" fill="url(#tang-black-grad)" />
+                        <path d="M 52,24 C 64,18 84,20 98,28 C 108,34 106,42 98,40 C 84,36 68,36 56,42 C 48,46 44,38 52,24 Z" fill="url(#tang-black-grad)" />
+                        <path d="M 22,50 C 26,22 56,15 88,20 C 104,23 112,32 118,44 C 122,48 122,52 118,56 C 112,68 104,77 88,80 C 56,85 26,78 22,50 Z" fill="url(#tang-gloss)" />
+                      </g>
+                      <path d="M 22,50 C 26,22 56,15 88,20 C 104,23 112,32 118,44 C 122,48 122,52 118,56 C 112,68 104,77 88,80 C 56,85 26,78 22,50 Z" fill="none" stroke="#001a66" strokeWidth="1.5" />
+                      <circle cx="38" cy="40" r="6.2" fill="#ffe600" stroke="#05070d" strokeWidth="0.8" />
+                      <circle cx="38" cy="40" r="4.5" fill="#111" />
+                    </svg>
+                  ) : isNews ? (
+                    <svg viewBox="0 0 140 150" width="100%" height="100%">
+                      <defs>
+                        <linearGradient id="news-body-grad" x1="0%" y1="0%" x2="100%" y2="80%">
+                          <stop offset="0%" stopColor="#00e673" />
+                          <stop offset="50%" stopColor="#00b359" />
+                          <stop offset="100%" stopColor="#004d26" />
+                        </linearGradient>
+                        <linearGradient id="news-yellow-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+                          <stop offset="0%" stopColor="#ccff33" />
+                          <stop offset="100%" stopColor="#99ff00" />
+                        </linearGradient>
+                        <linearGradient id="news-stripe-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+                          <stop offset="0%" stopColor="#0a120d" />
+                          <stop offset="100%" stopColor="#020503" />
+                        </linearGradient>
+                        <linearGradient id="news-gloss" x1="0%" y1="0%" x2="0%" y2="100%">
+                          <stop offset="0%" stopColor="#ffffff" stopOpacity="0.35" />
+                          <stop offset="50%" stopColor="#ffffff" stopOpacity="0.0" />
+                          <stop offset="100%" stopColor="#000000" stopOpacity="0.45" />
+                        </linearGradient>
+                        <clipPath id="news-body-clip">
+                          <path d="M 30,60 C 30,35 55,20 80,32 C 92,38 102,48 106,60 C 102,72 92,82 80,88 C 55,100 30,85 30,60 Z" />
+                        </clipPath>
+                      </defs>
+                      <g>
+                        <path d="M 65,33 Q 40,-15 25,-22 Q 55,10 85,34 Z" fill="url(#news-yellow-grad)" stroke="#003311" strokeWidth="1.2" />
+                        <path d="M 65,33 Q 40,-15 25,-22" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" />
+                      </g>
+                      <g>
+                        <path d="M 65,87 Q 40,135 25,142 Q 55,110 85,86 Z" fill="url(#news-yellow-grad)" stroke="#003311" strokeWidth="1.2" />
+                        <path d="M 65,87 Q 40,135 25,142" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" />
+                      </g>
+                      <g>
+                        <path d="M 52,82 Q 38,125 24,146" fill="none" stroke="#ccff33" strokeWidth="2.2" strokeLinecap="round" />
+                      </g>
+                      <g>
+                        <path d="M 106,60 L 126,38 C 132,45 132,75 126,82 Z" fill="url(#news-yellow-grad)" stroke="#003311" strokeWidth="1.2" />
+                        <path d="M 126,38 C 132,45 132,75 126,82" fill="none" stroke="#111" strokeWidth="2.5" strokeLinecap="round" />
+                      </g>
+                      <g clipPath="url(#news-body-clip)">
+                        <path d="M 10,10 H 130 V 110 H 10 Z" fill="url(#news-body-grad)" />
+                        <path d="M 46,10 C 56,30 56,90 46,110 H 60 C 70,90 70,30 60,10 Z" fill="url(#news-stripe-grad)" />
+                        <path d="M 82,10 C 92,30 92,90 82,110 H 94 C 104,90 104,30 94,10 Z" fill="url(#news-stripe-grad)" />
+                        <path d="M 30,60 C 30,35 55,20 80,32 C 92,38 102,48 106,60 C 102,72 92,82 80,88 C 55,100 30,85 30,60 Z" fill="url(#news-gloss)" />
+                      </g>
+                      <path d="M 30,60 C 30,35 55,20 80,32 C 92,38 102,48 106,60 C 102,72 92,82 80,88 C 55,100 30,85 30,60 Z" fill="none" stroke="#003311" strokeWidth="1.5" />
+                      <circle cx="42" cy="48" r="5.5" fill="#ccff33" stroke="#111" strokeWidth="0.8" />
+                      <circle cx="42" cy="48" r="3.5" fill="#000" />
                     </svg>
                   ) : (
-                    <svg viewBox="0 0 120 100" width="100%" height="100%">
+                    <svg viewBox="0 0 140 100" width="100%" height="100%">
                       <defs>
-                        <linearGradient id="celeb-fish-grad" x1="0%" y1="0%" x2="100%" y2="0%">
-                          <stop offset="0%" stopColor="#ff5722" />
-                          <stop offset="60%" stopColor="#ff7043" />
-                          <stop offset="100%" stopColor="#ffb74d" />
+                        <linearGradient id="clown-body-grad" x1="0%" y1="30%" x2="100%" y2="70%">
+                          <stop offset="0%" stopColor="#ff4500" />
+                          <stop offset="35%" stopColor="#ff6a00" />
+                          <stop offset="75%" stopColor="#ffa500" />
+                          <stop offset="100%" stopColor="#ffd700" />
                         </linearGradient>
-                        <linearGradient id="celeb-fin-grad" x1="0%" y1="0%" x2="100%" y2="100%">
-                          <stop offset="0%" stopColor="#ff7043" />
-                          <stop offset="100%" stopColor="#d84315" />
+                        <linearGradient id="clown-fin-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+                          <stop offset="0%" stopColor="#ff7f50" />
+                          <stop offset="60%" stopColor="#ff4500" />
+                          <stop offset="100%" stopColor="#8b0000" />
                         </linearGradient>
-                        <clipPath id="celeb-body-clip">
-                          <path d="M15,50 C25,28 65,22 85,38 C92,42 102,45 102,50 C102,55 92,58 85,62 C65,78 25,72 15,50 Z" />
+                        <linearGradient id="clown-gloss" x1="0%" y1="0%" x2="0%" y2="100%">
+                          <stop offset="0%" stopColor="#ffffff" stopOpacity="0.4" />
+                          <stop offset="40%" stopColor="#ffffff" stopOpacity="0.05" />
+                          <stop offset="100%" stopColor="#000000" stopOpacity="0.3" />
+                        </linearGradient>
+                        <clipPath id="clown-body-clip">
+                          <path d="M 18,50 C 24,30 52,22 84,28 C 96,31 106,38 116,42 C 124,45 128,48 128,50 C 128,52 124,55 116,58 C 106,62 96,69 84,72 C 52,78 24,70 18,50 Z" />
                         </clipPath>
                       </defs>
-                      <path d="M35,32 C45,10 65,15 70,30 C55,25 42,28 35,32 Z" fill="url(#celeb-fin-grad)" opacity="0.9" />
-                      <path d="M10,50 C2,30 5,20 15,28 C22,40 18,45 10,50 Z" fill="url(#celeb-fin-grad)" opacity="0.9" />
-                      <path d="M10,50 C2,70 5,80 15,72 C22,60 18,55 10,50 Z" fill="url(#celeb-fin-grad)" opacity="0.9" />
-                      <path d="M40,68 C50,85 62,82 65,70 C53,72 45,71 40,68 Z" fill="url(#celeb-fin-grad)" opacity="0.8" />
-                      <g clipPath="url(#celeb-body-clip)">
-                        <path d="M15,50 C25,28 65,22 85,38 C92,42 102,45 102,50 C102,55 92,58 85,62 C65,78 25,72 15,50 Z" fill="url(#celeb-fish-grad)" />
-                        <path d="M 24,15 L 34,15 L 30,85 L 20,85 Z" fill="#212121" />
-                        <path d="M 26,15 L 32,15 L 28,85 L 22,85 Z" fill="#ffffff" />
-                        <path d="M 52,10 C 63.5,35 63.5,65 52,90 L 61,90 C 72.5,65 72.5,35 61,10 Z" fill="#ffffff" />
-                        <path d="M 78,10 C 84.5,35 84.5,65 78,90 L 85,90 C 91.5,65 91.5,35 85,10 Z" fill="#ffffff" />
+                      <g>
+                        <path d="M 40,28 C 45,6 68,2 90,14 C 95,16 92,23 88,28 C 76,24 58,26 40,28 Z" fill="url(#clown-fin-grad)" stroke="#1a0d00" strokeWidth="1.5" />
+                        <path d="M 40,28 C 45,6 68,2 90,14" fill="none" stroke="#111" strokeWidth="4" strokeLinecap="round" />
                       </g>
-                      <circle cx="86" cy="44" r="4.5" fill="white" />
-                      <circle cx="87.5" cy="43" r="2.5" fill="#020810" />
-                      <circle cx="86.5" cy="42.5" r="0.8" fill="white" />
+                      <g>
+                        <path d="M 46,68 C 48,88 64,92 72,74 C 70,72 58,70 46,68 Z" fill="url(#clown-fin-grad)" stroke="#1a0d00" strokeWidth="1.5" />
+                        <path d="M 46,68 C 48,88 64,92 72,74" fill="none" stroke="#111" strokeWidth="4" strokeLinecap="round" />
+                        <path d="M 88,68 C 96,82 106,78 108,60 C 102,60 94,64 88,68 Z" fill="url(#clown-fin-grad)" stroke="#1a0d00" strokeWidth="1.5" />
+                        <path d="M 88,68 C 96,82 106,78 108,60" fill="none" stroke="#111" strokeWidth="4.2" strokeLinecap="round" />
+                      </g>
+                      <g>
+                        <path d="M 122,50 C 138,24 146,26 138,12 C 128,14 122,34 116,42 M 122,50 C 138,76 146,74 138,88 C 128,86 122,66 116,58" fill="url(#clown-fin-grad)" stroke="#1a0d00" strokeWidth="1.5" />
+                        <path d="M 138,12 C 148,22 148,78 138,88" fill="none" stroke="#111" strokeWidth="5.5" strokeLinecap="round" />
+                      </g>
+                      <g clipPath="url(#clown-body-clip)">
+                        <path d="M 10,10 H 130 V 90 H 10 Z" fill="url(#clown-body-grad)" />
+                        <path d="M 44,10 C 58,25 58,75 44,90 L 58,90 C 72,75 72,25 58,10 Z" fill="#ffffff" />
+                        <path d="M 44,10 C 46,25 46,75 44,90 M 58,10 C 56,25 56,75 58,90" fill="none" stroke="#1a0d00" strokeWidth="1.8" />
+                        <path d="M 80,10 C 90,25 90,75 80,90 L 90,90 C 100,75 100,25 90,10 Z" fill="#ffffff" />
+                        <path d="M 80,10 C 82,25 82,75 80,90 M 90,10 C 88,25 88,75 90,90" fill="none" stroke="#1a0d00" strokeWidth="1.8" />
+                        <path d="M 112,30 C 117,38 117,62 112,70 L 118,70 C 123,62 123,38 118,30 Z" fill="#ffffff" />
+                        <path d="M 18,50 C 24,30 52,22 84,28 C 96,31 106,38 116,42 C 124,45 128,48 128,50 C 128,52 124,55 116,58 C 106,62 96,69 84,72 C 52,78 24,70 18,50 Z" fill="url(#clown-gloss)" />
+                      </g>
+                      <path d="M 18,50 C 24,30 52,22 84,28 C 96,31 106,38 116,42 C 124,45 128,48 128,50 C 128,52 124,55 116,58 C 106,62 96,69 84,72 C 52,78 24,70 18,50 Z" fill="none" stroke="#1a0d00" strokeWidth="1.8" />
+                      <circle cx="34" cy="42" r="5.5" fill="#ffd700" stroke="#1a0d00" strokeWidth="0.8" />
+                      <circle cx="34" cy="42" r="3.5" fill="#111" />
                     </svg>
                   )}
                 </motion.div>

@@ -237,9 +237,9 @@ export default function App() {
         setNewsQuizContext(newsMap);
         
         // Dynamically set quiz complete status
-        setTripQuizDone(Object.keys(tripMap).length > 0);
-        setStockQuizDone(Object.keys(stockMap).length > 0);
-        setNewsQuizDone(Object.keys(newsMap).length > 0);
+        setTripQuizDone(Object.keys(tripMap).filter(k => k !== 'feed_frequency').length > 0);
+        setStockQuizDone(Object.keys(stockMap).filter(k => k !== 'feed_frequency').length > 0);
+        setNewsQuizDone(Object.keys(newsMap).filter(k => k !== 'feed_frequency').length > 0);
         
         if (tripMap.home_city) {
           setHomeCity(tripMap.home_city);
@@ -357,6 +357,30 @@ export default function App() {
     
     consumeEnergyCharge();
     await fetchDigests();
+  };
+
+  const handleUpdateFeedFrequency = async (fishSlug, frequency) => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { error } = await supabase
+        .from('fish_context')
+        .upsert({
+          user_id: user.id,
+          fish_slug: fishSlug,
+          context_key: 'feed_frequency',
+          context_value: frequency
+        }, { onConflict: 'user_id,fish_slug,context_key' });
+
+      if (!error) {
+        await fetchFishContext();
+      } else {
+        console.error("Failed to update feed frequency:", error);
+      }
+    } catch (err) {
+      console.error(err);
+    }
   };
 
   const handleToggleFishActive = async (slug) => {
@@ -618,6 +642,7 @@ export default function App() {
         newsFishActive={newsFishActive}
         onToggleFishActive={handleToggleFishActive}
         onLogout={handleLogout}
+        onUpdateFeedFrequency={handleUpdateFeedFrequency}
       />
 
     </div>
